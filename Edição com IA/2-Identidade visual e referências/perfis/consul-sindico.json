@@ -1,0 +1,48 @@
+{
+  "nome": "Consul Síndico",
+  "tipo": "institucional",
+  "descricao": "Identidade institucional Consul Síndico: azul-marinho, dourado e branco.",
+  "cores": {
+    "primaria": "#0A1A3C",
+    "destaque": "#C2942B",
+    "texto": "#FFFFFF"
+  },
+  "fonte": {
+    "familia": "DejaVu Sans",
+    "arquivo": null,
+    "negrito": true
+  },
+  "legendas": {
+    "posicao": "inferior",
+    "margem_vertical": 0.1,
+    "tamanho": 0.048,
+    "cor_texto": "#FFFFFF",
+    "cor_contorno": "#0A1A3C",
+    "espessura_contorno": 3,
+    "cor_fundo": "#0A1A3C",
+    "opacidade_fundo": 0.55,
+    "max_caracteres_linha": 38,
+    "max_linhas": 2,
+    "max_duracao": 5.0
+  },
+  "logo": {
+    "arquivo": "consul-sindico.png",
+    "posicao": "superior-direita",
+    "largura": 0.14,
+    "margem": 0.03
+  },
+  "titulo": {
+    "fundo": "#0A1A3C",
+    "cor": "#FFFFFF",
+    "cor_subtitulo": "#C2942B",
+    "duracao": 3.0
+  },
+  "encerramento": {
+    "fundo": "#0A1A3C",
+    "cor": "#C2942B",
+    "texto": "Consul Síndico",
+    "duracao": 4.0,
+    "mostrar_logo": true
+  },
+  "fundo_caber": "#0A1A3C"
+}

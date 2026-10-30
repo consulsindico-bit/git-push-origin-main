@@ -1,0 +1,11 @@
+# Transcrição para revisão. Edite apenas o texto depois da barra | .
+# Não altere os números entre colchetes nem os tempos.
+# Palavras seguidas de [?] são incertas. Linhas com ⚠ precisam de conferência.
+# Para deixar um trecho sem legenda, apague o texto depois da barra (o áudio continua).
+
+[1] 00:00.000 --> 00:05.450 | Olá! Seja bem-vindo ao canal do Consul Síndico. Hoje eu vou explicar, de forma bem simples, como
+[2] 00:05.450 --> 00:12.980 | funciona a prestação de contas do condomínio. Todo mês, o síndico precisa reunir os comprovantes
+[3] 00:12.980 --> 00:18.280 | de despesas e receitas. Esses documentos são organizados em um balancete, que mostra para
+[4] 00:18.280 --> 00:25.380 | onde foi o dinheiro. O conselho fiscal analisa o balancete e emite um parecer. Na assembleia,
+[5] 00:25.580 --> 00:33.460 | os condôminos aprovam ou reprovam as contas apresentadas. Se você gostou deste conteúdo,
+[6] 00:33.920 --> 00:37.200 | compartilhe com os moradores do seu condomínio. Até a próxima!

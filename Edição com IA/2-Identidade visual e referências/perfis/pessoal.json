@@ -1,0 +1,48 @@
+{
+  "nome": "Pessoal",
+  "tipo": "pessoal",
+  "descricao": "Estilo neutro para vídeos pessoais.",
+  "cores": {
+    "primaria": "#111111",
+    "destaque": "#FFD200",
+    "texto": "#FFFFFF"
+  },
+  "fonte": {
+    "familia": "DejaVu Sans",
+    "arquivo": null,
+    "negrito": true
+  },
+  "legendas": {
+    "posicao": "inferior",
+    "margem_vertical": 0.1,
+    "tamanho": 0.048,
+    "cor_texto": "#FFFFFF",
+    "cor_contorno": "#000000",
+    "espessura_contorno": 3,
+    "cor_fundo": null,
+    "opacidade_fundo": 0.6,
+    "max_caracteres_linha": 38,
+    "max_linhas": 2,
+    "max_duracao": 5.0
+  },
+  "logo": {
+    "arquivo": null,
+    "posicao": "superior-direita",
+    "largura": 0.14,
+    "margem": 0.03
+  },
+  "titulo": {
+    "fundo": "#111111",
+    "cor": "#FFFFFF",
+    "cor_subtitulo": "#FFD200",
+    "duracao": 3.0
+  },
+  "encerramento": {
+    "fundo": "#111111",
+    "cor": "#FFFFFF",
+    "texto": "",
+    "duracao": 3.0,
+    "mostrar_logo": true
+  },
+  "fundo_caber": "#000000"
+}

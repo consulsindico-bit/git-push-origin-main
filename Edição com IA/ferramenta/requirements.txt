@@ -1,0 +1,4 @@
+# Transcrição local em português (Whisper otimizado para CPU)
+faster-whisper>=1.1,<2
+numpy>=1.24
+# O FFmpeg NÃO é instalado pelo pip: veja o LEIA-ME.md

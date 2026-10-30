@@ -1,0 +1,13 @@
+# Ambiente Python e caches
+**/.venv/
+**/__pycache__/
+*.pyc
+
+# Arquivos intermediários (recriados pela ferramenta)
+**/3-Projetos e intermediários/*/trabalho/
+
+# Vídeos brutos e exportados não vão para o git (exceto o teste pequeno)
+Edição com IA/1-Material bruto/*
+!Edição com IA/1-Material bruto/teste-consul-sindico.mp4
+Edição com IA/4-Vídeos exportados/*
+!Edição com IA/4-Vídeos exportados/teste-consul-*

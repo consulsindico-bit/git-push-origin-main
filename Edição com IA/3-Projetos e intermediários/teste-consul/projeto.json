@@ -1,0 +1,857 @@
+{
+  "versao": 1,
+  "nome": "teste-consul",
+  "criado_em": "2026-10-30T19:31:09",
+  "origem": {
+    "arquivo": "teste-consul-sindico.mp4",
+    "caminho": "/home/user/git-push-origin-main/Edição com IA/1-Material bruto/teste-consul-sindico.mp4",
+    "sha256": "1794b6083349333d2e97258511c4ae12b43d70778b608021b82a9f4cc1898208",
+    "info": {
+      "duracao": 37.58,
+      "largura": 1280,
+      "altura": 720,
+      "fps": 30.0,
+      "tem_video": true,
+      "tem_audio": true,
+      "rotacao": 0
+    }
+  },
+  "perfil": "consul-sindico",
+  "transcricao": {
+    "modelo": "small",
+    "idioma": "pt",
+    "probabilidade_idioma": 1.0,
+    "segmentos": [
+      {
+        "id": 1,
+        "inicio": 0.0,
+        "fim": 5.45,
+        "texto": "Olá! Seja bem-vindo ao canal do Consul Síndico. Hoje eu vou explicar, de forma bem simples, como",
+        "texto_original": "Olá! Seja bem-vindo ao canal do Consul Cíndico. Hoje eu vou explicar de forma bem simples como",
+        "confianca": 0.81,
+        "incerto": false,
+        "motivo_incerteza": "",
+        "palavras": [
+          {
+            "p": "Olá!",
+            "inicio": 0.0,
+            "fim": 0.18,
+            "prob": 0.942
+          },
+          {
+            "p": "Seja",
+            "inicio": 0.5,
+            "fim": 0.66,
+            "prob": 0.976
+          },
+          {
+            "p": "bem",
+            "inicio": 0.66,
+            "fim": 0.84,
+            "prob": 0.974
+          },
+          {
+            "p": "-vindo",
+            "inicio": 0.84,
+            "fim": 1.06,
+            "prob": 0.914
+          },
+          {
+            "p": "ao",
+            "inicio": 1.06,
+            "fim": 1.18,
+            "prob": 0.993
+          },
+          {
+            "p": "canal",
+            "inicio": 1.18,
+            "fim": 1.4,
+            "prob": 0.923
+          },
+          {
+            "p": "do",
+            "inicio": 1.4,
+            "fim": 1.58,
+            "prob": 0.962
+          },
+          {
+            "p": "Consul",
+            "inicio": 1.58,
+            "fim": 1.94,
+            "prob": 0.803
+          },
+          {
+            "p": "Cíndico.",
+            "inicio": 1.94,
+            "fim": 2.48,
+            "prob": 0.61
+          },
+          {
+            "p": "Hoje",
+            "inicio": 3.11,
+            "fim": 3.29,
+            "prob": 0.993
+          },
+          {
+            "p": "eu",
+            "inicio": 3.29,
+            "fim": 3.41,
+            "prob": 0.851
+          },
+          {
+            "p": "vou",
+            "inicio": 3.41,
+            "fim": 3.53,
+            "prob": 0.997
+          },
+          {
+            "p": "explicar",
+            "inicio": 3.53,
+            "fim": 3.87,
+            "prob": 0.914
+          },
+          {
+            "p": "de",
+            "inicio": 3.87,
+            "fim": 4.25,
+            "prob": 0.681
+          },
+          {
+            "p": "forma",
+            "inicio": 4.25,
+            "fim": 4.47,
+            "prob": 0.992
+          },
+          {
+            "p": "bem",
+            "inicio": 4.47,
+            "fim": 4.71,
+            "prob": 0.986
+          },
+          {
+            "p": "simples",
+            "inicio": 4.71,
+            "fim": 5.13,
+            "prob": 0.998
+          },
+          {
+            "p": "como",
+            "inicio": 5.13,
+            "fim": 5.45,
+            "prob": 0.977
+          }
+        ],
+        "revisado": true
+      },
+      {
+        "id": 2,
+        "inicio": 5.45,
+        "fim": 12.98,
+        "texto": "funciona a prestação de contas do condomínio. Todo mês, o síndico precisa reunir os comprovantes",
+        "texto_original": "funciona a prestação de contas do condomínio. Ao do mês, o Cíndico precisa reunir os comprovantes",
+        "confianca": 0.81,
+        "incerto": false,
+        "motivo_incerteza": "",
+        "palavras": [
+          {
+            "p": "funciona",
+            "inicio": 5.45,
+            "fim": 5.89,
+            "prob": 0.982
+          },
+          {
+            "p": "a",
+            "inicio": 5.89,
+            "fim": 6.13,
+            "prob": 0.979
+          },
+          {
+            "p": "prestação",
+            "inicio": 6.13,
+            "fim": 6.49,
+            "prob": 0.891
+          },
+          {
+            "p": "de",
+            "inicio": 6.49,
+            "fim": 6.65,
+            "prob": 0.993
+          },
+          {
+            "p": "contas",
+            "inicio": 6.65,
+            "fim": 7.03,
+            "prob": 0.984
+          },
+          {
+            "p": "do",
+            "inicio": 7.03,
+            "fim": 7.17,
+            "prob": 0.979
+          },
+          {
+            "p": "condomínio.",
+            "inicio": 7.17,
+            "fim": 7.81,
+            "prob": 0.978
+          },
+          {
+            "p": "Ao",
+            "inicio": 10.48,
+            "fim": 10.66,
+            "prob": 0.761
+          },
+          {
+            "p": "do",
+            "inicio": 10.66,
+            "fim": 10.72,
+            "prob": 0.895
+          },
+          {
+            "p": "mês,",
+            "inicio": 10.72,
+            "fim": 10.9,
+            "prob": 0.998
+          },
+          {
+            "p": "o",
+            "inicio": 11.16,
+            "fim": 11.24,
+            "prob": 0.986
+          },
+          {
+            "p": "Cíndico",
+            "inicio": 11.24,
+            "fim": 11.58,
+            "prob": 0.857
+          },
+          {
+            "p": "precisa",
+            "inicio": 11.58,
+            "fim": 11.86,
+            "prob": 0.994
+          },
+          {
+            "p": "reunir",
+            "inicio": 11.86,
+            "fim": 12.3,
+            "prob": 0.975
+          },
+          {
+            "p": "os",
+            "inicio": 12.3,
+            "fim": 12.44,
+            "prob": 0.974
+          },
+          {
+            "p": "comprovantes",
+            "inicio": 12.44,
+            "fim": 12.98,
+            "prob": 0.985
+          }
+        ],
+        "revisado": true
+      },
+      {
+        "id": 3,
+        "inicio": 12.98,
+        "fim": 18.28,
+        "texto": "de despesas e receitas. Esses documentos são organizados em um balancete, que mostra para",
+        "texto_original": "de despesas e receitas. Seis documentos são mobilizados em um balançete, que mostra para",
+        "confianca": 0.81,
+        "incerto": false,
+        "motivo_incerteza": "",
+        "palavras": [
+          {
+            "p": "de",
+            "inicio": 12.98,
+            "fim": 13.16,
+            "prob": 0.996
+          },
+          {
+            "p": "despesas",
+            "inicio": 13.16,
+            "fim": 13.6,
+            "prob": 0.987
+          },
+          {
+            "p": "e",
+            "inicio": 13.6,
+            "fim": 13.74,
+            "prob": 0.995
+          },
+          {
+            "p": "receitas.",
+            "inicio": 13.74,
+            "fim": 14.26,
+            "prob": 0.991
+          },
+          {
+            "p": "Seis",
+            "inicio": 15.08,
+            "fim": 15.28,
+            "prob": 0.553
+          },
+          {
+            "p": "documentos",
+            "inicio": 15.28,
+            "fim": 15.8,
+            "prob": 0.995
+          },
+          {
+            "p": "são",
+            "inicio": 15.8,
+            "fim": 15.94,
+            "prob": 0.994
+          },
+          {
+            "p": "mobilizados",
+            "inicio": 15.94,
+            "fim": 16.5,
+            "prob": 0.789
+          },
+          {
+            "p": "em",
+            "inicio": 16.5,
+            "fim": 16.72,
+            "prob": 0.997
+          },
+          {
+            "p": "um",
+            "inicio": 16.72,
+            "fim": 16.82,
+            "prob": 0.991
+          },
+          {
+            "p": "balançete,",
+            "inicio": 16.82,
+            "fim": 17.4,
+            "prob": 0.668
+          },
+          {
+            "p": "que",
+            "inicio": 17.72,
+            "fim": 17.78,
+            "prob": 0.997
+          },
+          {
+            "p": "mostra",
+            "inicio": 17.78,
+            "fim": 18.02,
+            "prob": 0.989
+          },
+          {
+            "p": "para",
+            "inicio": 18.02,
+            "fim": 18.28,
+            "prob": 0.981
+          }
+        ],
+        "revisado": true
+      },
+      {
+        "id": 4,
+        "inicio": 18.28,
+        "fim": 25.38,
+        "texto": "onde foi o dinheiro. O conselho fiscal analisa o balancete e emite um parecer. Na assembleia,",
+        "texto_original": "onde foi o dinheiro. Com seu fiscal analisa o balançete e emite um parecer. A Assembleia,",
+        "confianca": 0.81,
+        "incerto": false,
+        "motivo_incerteza": "palavras incertas: Com, analisa",
+        "palavras": [
+          {
+            "p": "onde",
+            "inicio": 18.28,
+            "fim": 18.46,
+            "prob": 0.995
+          },
+          {
+            "p": "foi",
+            "inicio": 18.46,
+            "fim": 18.7,
+            "prob": 0.972
+          },
+          {
+            "p": "o",
+            "inicio": 18.7,
+            "fim": 18.82,
+            "prob": 0.996
+          },
+          {
+            "p": "dinheiro.",
+            "inicio": 18.82,
+            "fim": 19.1,
+            "prob": 0.993
+          },
+          {
+            "p": "Com",
+            "inicio": 21.42,
+            "fim": 21.54,
+            "prob": 0.406
+          },
+          {
+            "p": "seu",
+            "inicio": 21.54,
+            "fim": 21.72,
+            "prob": 0.704
+          },
+          {
+            "p": "fiscal",
+            "inicio": 21.72,
+            "fim": 22.04,
+            "prob": 0.986
+          },
+          {
+            "p": "analisa",
+            "inicio": 22.04,
+            "fim": 22.56,
+            "prob": 0.408
+          },
+          {
+            "p": "o",
+            "inicio": 22.56,
+            "fim": 22.68,
+            "prob": 0.982
+          },
+          {
+            "p": "balançete",
+            "inicio": 22.68,
+            "fim": 23.12,
+            "prob": 0.968
+          },
+          {
+            "p": "e",
+            "inicio": 23.12,
+            "fim": 23.3,
+            "prob": 0.983
+          },
+          {
+            "p": "emite",
+            "inicio": 23.3,
+            "fim": 23.48,
+            "prob": 0.794
+          },
+          {
+            "p": "um",
+            "inicio": 23.48,
+            "fim": 23.58,
+            "prob": 0.99
+          },
+          {
+            "p": "parecer.",
+            "inicio": 23.58,
+            "fim": 23.86,
+            "prob": 0.741
+          },
+          {
+            "p": "A",
+            "inicio": 24.72,
+            "fim": 24.88,
+            "prob": 0.633
+          },
+          {
+            "p": "Assembleia,",
+            "inicio": 24.88,
+            "fim": 25.38,
+            "prob": 0.84
+          }
+        ],
+        "revisado": true
+      },
+      {
+        "id": 5,
+        "inicio": 25.58,
+        "fim": 33.46,
+        "texto": "os condôminos aprovam ou reprovam as contas apresentadas. Se você gostou deste conteúdo,",
+        "texto_original": "os condômenos aprovam ou reprovam as contas apresentadas. E você gostou deste conteúdo?",
+        "confianca": 0.81,
+        "incerto": false,
+        "motivo_incerteza": "",
+        "palavras": [
+          {
+            "p": "os",
+            "inicio": 25.58,
+            "fim": 25.66,
+            "prob": 0.937
+          },
+          {
+            "p": "condômenos",
+            "inicio": 25.66,
+            "fim": 26.18,
+            "prob": 0.939
+          },
+          {
+            "p": "aprovam",
+            "inicio": 26.18,
+            "fim": 26.62,
+            "prob": 0.974
+          },
+          {
+            "p": "ou",
+            "inicio": 26.62,
+            "fim": 26.76,
+            "prob": 0.984
+          },
+          {
+            "p": "reprovam",
+            "inicio": 26.76,
+            "fim": 27.16,
+            "prob": 0.931
+          },
+          {
+            "p": "as",
+            "inicio": 27.16,
+            "fim": 27.32,
+            "prob": 0.996
+          },
+          {
+            "p": "contas",
+            "inicio": 27.32,
+            "fim": 27.64,
+            "prob": 0.998
+          },
+          {
+            "p": "apresentadas.",
+            "inicio": 27.64,
+            "fim": 28.42,
+            "prob": 0.99
+          },
+          {
+            "p": "E",
+            "inicio": 31.92,
+            "fim": 32.1,
+            "prob": 0.967
+          },
+          {
+            "p": "você",
+            "inicio": 32.1,
+            "fim": 32.26,
+            "prob": 0.978
+          },
+          {
+            "p": "gostou",
+            "inicio": 32.26,
+            "fim": 32.68,
+            "prob": 0.996
+          },
+          {
+            "p": "deste",
+            "inicio": 32.68,
+            "fim": 32.94,
+            "prob": 0.948
+          },
+          {
+            "p": "conteúdo?",
+            "inicio": 32.94,
+            "fim": 33.46,
+            "prob": 0.996
+          }
+        ],
+        "revisado": true
+      },
+      {
+        "id": 6,
+        "inicio": 33.92,
+        "fim": 37.2,
+        "texto": "compartilhe com os moradores do seu condomínio. Até a próxima!",
+        "texto_original": "Compartilhe com os moradores do seu condomínio. Até a próxima!",
+        "confianca": 0.81,
+        "incerto": false,
+        "motivo_incerteza": "",
+        "palavras": [
+          {
+            "p": "Compartilhe",
+            "inicio": 33.92,
+            "fim": 34.26,
+            "prob": 0.806
+          },
+          {
+            "p": "com",
+            "inicio": 34.26,
+            "fim": 34.4,
+            "prob": 0.997
+          },
+          {
+            "p": "os",
+            "inicio": 34.4,
+            "fim": 34.56,
+            "prob": 0.992
+          },
+          {
+            "p": "moradores",
+            "inicio": 34.56,
+            "fim": 34.92,
+            "prob": 0.998
+          },
+          {
+            "p": "do",
+            "inicio": 34.92,
+            "fim": 35.2,
+            "prob": 0.991
+          },
+          {
+            "p": "seu",
+            "inicio": 35.2,
+            "fim": 35.32,
+            "prob": 0.998
+          },
+          {
+            "p": "condomínio.",
+            "inicio": 35.32,
+            "fim": 36.06,
+            "prob": 0.996
+          },
+          {
+            "p": "Até",
+            "inicio": 36.66,
+            "fim": 36.84,
+            "prob": 0.985
+          },
+          {
+            "p": "a",
+            "inicio": 36.84,
+            "fim": 36.94,
+            "prob": 0.889
+          },
+          {
+            "p": "próxima!",
+            "inicio": 36.94,
+            "fim": 37.2,
+            "prob": 0.988
+          }
+        ],
+        "revisado": true
+      }
+    ]
+  },
+  "remocoes": [
+    {
+      "id": 1,
+      "inicio": 8.008,
+      "fim": 10.406,
+      "motivo": "silencio",
+      "rotulo": "silêncio 1 (2.7s)"
+    },
+    {
+      "id": 2,
+      "inicio": 19.546,
+      "fim": 21.314,
+      "motivo": "silencio",
+      "rotulo": "silêncio 2 (2.1s)"
+    },
+    {
+      "id": 3,
+      "inicio": 28.78,
+      "fim": 31.876,
+      "motivo": "silencio",
+      "rotulo": "silêncio 3 (3.4s)"
+    },
+    {
+      "id": 4,
+      "inicio": 36.195,
+      "fim": 36.621,
+      "motivo": "silencio",
+      "rotulo": "silêncio 4 (0.7s)"
+    }
+  ],
+  "silencios_sugeridos": [
+    {
+      "id": 1,
+      "inicio": 7.858,
+      "fim": 10.556,
+      "duracao": 2.698,
+      "ja_removido": true,
+      "selecionado": false
+    },
+    {
+      "id": 2,
+      "inicio": 19.396,
+      "fim": 21.464,
+      "duracao": 2.068,
+      "ja_removido": true,
+      "selecionado": false
+    },
+    {
+      "id": 3,
+      "inicio": 28.63,
+      "fim": 32.026,
+      "duracao": 3.396,
+      "ja_removido": true,
+      "selecionado": false
+    },
+    {
+      "id": 4,
+      "inicio": 36.045,
+      "fim": 36.771,
+      "duracao": 0.727,
+      "ja_removido": true,
+      "selecionado": false
+    }
+  ],
+  "audio": {
+    "ganho_db": 0,
+    "melhorar_voz": true,
+    "normalizar": true
+  },
+  "formato": "16:9",
+  "enquadramento": {
+    "modo": "cortar",
+    "centro_x": 0.5,
+    "centro_y": 0.5
+  },
+  "titulo": {
+    "texto": "Prestação de contas do condomínio",
+    "subtitulo": "Explicado de forma simples",
+    "duracao": null
+  },
+  "encerramento": {
+    "texto": "Consul Síndico — gestão condominial",
+    "duracao": null,
+    "ativo": true
+  },
+  "logo": {
+    "arquivo": "logo-de-teste.png",
+    "posicao": "superior-direita",
+    "largura": null,
+    "ativo": true
+  },
+  "legendas": {
+    "ativas": true
+  },
+  "duracao_alvo": null,
+  "historico": [
+    {
+      "quando": "2026-10-30T19:31:09",
+      "acao": "importado de ../1-Material bruto/teste-consul-sindico.mp4"
+    },
+    {
+      "quando": "2026-10-30T19:31:49",
+      "acao": "transcrito com modelo small"
+    },
+    {
+      "quando": "2026-10-30T19:32:10",
+      "acao": "transcrição revisada a partir de /tmp/claude-0/-home-user-git-push-origin-main/bd8ae62e-5d56-5d43-9634-91ce0bb6ceff/scratchpad/revisado.txt"
+    },
+    {
+      "quando": "2026-10-30T19:32:10",
+      "acao": "silêncios sugeridos"
+    },
+    {
+      "quando": "2026-10-30T19:32:10",
+      "acao": "silêncios aplicados: ['silêncio 1 (2.7s)', 'silêncio 2 (2.1s)', 'silêncio 3 (3.4s)', 'silêncio 4 (0.7s)']"
+    },
+    {
+      "quando": "2026-10-30T19:32:10",
+      "acao": "logo: {'arquivo': 'logo-de-teste.png', 'posicao': None, 'largura': None, 'ativo': True}"
+    },
+    {
+      "quando": "2026-10-30T19:32:10",
+      "acao": "título/encerramento atualizados"
+    },
+    {
+      "quando": "2026-10-30T19:34:04",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-16x9.mp4"
+    },
+    {
+      "quando": "2026-10-30T19:34:32",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-9x16.mp4"
+    },
+    {
+      "quando": "2026-10-30T19:34:52",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.mp4"
+    },
+    {
+      "quando": "2026-10-30T19:36:43",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-16x9.mp4"
+    },
+    {
+      "quando": "2026-10-30T19:37:08",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-9x16.mp4"
+    },
+    {
+      "quando": "2026-10-30T19:37:28",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.mp4"
+    },
+    {
+      "quando": "2026-10-30T19:38:40",
+      "acao": "descrição: Faça uma versão de até 20 segundos, retire pausas longas, coloque legendas, form"
+    },
+    {
+      "quando": "2026-10-30T19:43:47",
+      "acao": "silêncios sugeridos (interface)"
+    },
+    {
+      "quando": "2026-10-30T19:43:50",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-10-30T19:43:53",
+      "acao": "descrição (interface): coloque legendas e formato quadrado"
+    },
+    {
+      "quando": "2026-10-30T19:43:54",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-10-30T19:44:26",
+      "acao": "silêncios sugeridos"
+    },
+    {
+      "quando": "2026-10-30T19:46:35",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-16x9.mp4"
+    },
+    {
+      "quando": "2026-10-30T19:47:01",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-9x16.mp4"
+    },
+    {
+      "quando": "2026-10-30T19:47:20",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.mp4"
+    }
+  ],
+  "exportacoes": [
+    {
+      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-16x9.mp4",
+      "formato": "16:9",
+      "qualidade": "final",
+      "duracao_prevista": 36.892,
+      "legendas": 9,
+      "trechos": 5,
+      "logo": true,
+      "titulo": true,
+      "encerramento": true,
+      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-16x9.srt",
+      "quando": "2026-10-30T19:46:35"
+    },
+    {
+      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-9x16.mp4",
+      "formato": "9:16",
+      "qualidade": "final",
+      "duracao_prevista": 36.892,
+      "legendas": 13,
+      "trechos": 5,
+      "logo": true,
+      "titulo": true,
+      "encerramento": true,
+      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-9x16.srt",
+      "quando": "2026-10-30T19:47:01"
+    },
+    {
+      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.mp4",
+      "formato": "1:1",
+      "qualidade": "final",
+      "duracao_prevista": 36.892,
+      "legendas": 11,
+      "trechos": 5,
+      "logo": true,
+      "titulo": true,
+      "encerramento": true,
+      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.srt",
+      "quando": "2026-10-30T19:47:20"
+    }
+  ],
+  "silencios_parametros": {
+    "duracao_minima": 0.7,
+    "limiar_db": -35.0
+  }
+}

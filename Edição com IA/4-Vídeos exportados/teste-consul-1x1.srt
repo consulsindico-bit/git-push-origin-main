@@ -1,0 +1,53 @@
+1
+00:00:03,000 --> 00:00:05,480
+Olá! Seja bem-vindo ao
+canal do Consul Síndico.
+
+2
+00:00:06,110 --> 00:00:09,080
+Hoje eu vou explicar, de forma
+bem simples, como funciona a
+
+3
+00:00:09,130 --> 00:00:10,810
+prestação de contas
+do condomínio.
+
+4
+00:00:11,082 --> 00:00:13,712
+Todo mês, o síndico precisa
+reunir os comprovantes de
+
+5
+00:00:13,762 --> 00:00:17,372
+despesas e receitas. Esses
+documentos são organizados em um
+
+6
+00:00:17,422 --> 00:00:19,702
+balancete, que mostra
+para onde foi o dinheiro.
+
+7
+00:00:20,254 --> 00:00:22,694
+O conselho fiscal analisa o
+balancete e emite um parecer.
+
+8
+00:00:23,554 --> 00:00:26,424
+Na assembleia, os condôminos
+aprovam ou reprovam as contas
+
+9
+00:00:26,474 --> 00:00:29,198
+apresentadas. Se você
+gostou deste conteúdo,
+
+10
+00:00:29,658 --> 00:00:31,798
+compartilhe com os
+moradores do seu condomínio.
+
+11
+00:00:31,972 --> 00:00:32,772
+Até a próxima!

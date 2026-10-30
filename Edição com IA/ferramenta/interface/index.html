@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edição com IA</title>
+<style>
+  :root { --azul:#0A1A3C; --dourado:#C2942B; --fundo:#f4f5f8; --borda:#d8dbe3; --texto:#1c2030; --ok:#1d7a3e; --erro:#b3261e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--fundo); color:var(--texto); }
+  header { background:var(--azul); color:#fff; padding:14px 20px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; }
+  header select { padding:6px 8px; border-radius:6px; border:1px solid #fff3; background:#fff; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  section { background:#fff; border:1px solid var(--borda); border-radius:10px; padding:16px; margin-bottom:16px; }
+  section h2 { margin:0 0 10px; font-size:16px; color:var(--azul); }
+  section h2 small { font-weight:normal; color:#667; font-size:12px; margin-left:8px; }
+  label { display:block; font-size:13px; margin:8px 0 3px; }
+  input[type=text], input[type=number], textarea, select { width:100%; padding:7px 9px; border:1px solid var(--borda); border-radius:6px; font:inherit; }
+  textarea { min-height:70px; }
+  .linha { display:flex; gap:12px; flex-wrap:wrap; }
+  .linha > * { flex:1 1 180px; }
+  button { background:var(--azul); color:#fff; border:0; border-radius:6px; padding:8px 14px; font:inherit; cursor:pointer; margin:6px 6px 0 0; }
+  button.sec { background:#e8eaf0; color:var(--azul); }
+  button.perigo { background:#fff; color:var(--erro); border:1px solid var(--erro); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .msg { padding:8px 10px; border-radius:6px; margin-top:8px; font-size:13px; white-space:pre-wrap; }
+  .msg.ok { background:#e7f5ec; color:var(--ok); } .msg.erro { background:#fdecea; color:var(--erro); } .msg.info { background:#eef1f8; color:var(--azul); }
+  .progresso { height:14px; background:#e5e7ee; border-radius:7px; overflow:hidden; margin-top:6px; }
+  .progresso > div { height:100%; background:var(--dourado); width:0; transition:width .3s; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:6px; border-bottom:1px solid var(--borda); vertical-align:top; }
+  td textarea { min-height:38px; }
+  .incerto { background:#fff8e5; }
+  .removida { opacity:.5; text-decoration:line-through; }
+  .tag { display:inline-block; font-size:11px; padding:2px 6px; border-radius:10px; background:#eef1f8; color:var(--azul); margin-left:4px; }
+  .tag.aviso { background:#fff1c9; color:#7a5200; }
+  video, img.quadro { width:100%; max-height:380px; background:#000; border-radius:8px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:760px) { .cards { grid-template-columns:1fr; } }
+  .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:12px; }
+  .resumo { font-size:13px; color:#445; }
+  details summary { cursor:pointer; color:var(--azul); font-size:13px; }
+  #tarefa { position:sticky; top:0; z-index:5; background:#fffbe8; border-bottom:1px solid #f0d890; padding:8px 20px; font-size:13px; display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Edição com IA</h1>
+  <div>Projeto: <select id="selProjeto"></select></div>
+  <div id="resumoTopo" class="resumo" style="color:#dfe3ee"></div>
+</header>
+<div id="tarefa"><span id="tarefaTexto"></span><div class="progresso"><div id="tarefaBarra"></div></div></div>
+
+<main>
+  <section id="secImportar">
+    <h2>1. Importar vídeo <small>o original é copiado para “1-Material bruto” e nunca é alterado</small></h2>
+    <div class="linha">
+      <div>
+        <label>Enviar arquivo do computador</label>
+        <input type="file" id="arqVideo" accept="video/*,.mp4,.mov,.mkv,.avi,.webm,.m4v">
+      </div>
+      <div>
+        <label>Ou caminho de um arquivo já no computador (ou nome em “1-Material bruto”)</label>
+        <input type="text" id="caminhoVideo" placeholder="ex.: C:\Vídeos\aula.mp4 ou aula.mp4">
+      </div>
+      <div>
+        <label>Nome do projeto (opcional)</label>
+        <input type="text" id="nomeProjeto" placeholder="ex.: aula-prestacao-contas">
+      </div>
+      <div>
+        <label>Perfil de estilo</label>
+        <select id="perfilImportar"></select>
+      </div>
+    </div>
+    <button id="btnImportar">Importar</button>
+    <div class="progresso" id="progImportar" style="display:none"><div></div></div>
+    <div id="msgImportar"></div>
+  </section>
+
+  <div id="comProjeto" style="display:none">
+  <section>
+    <h2>2. Descrever a edição <small>em português; o que a ferramenta não entender, peça na conversa com o Claude</small></h2>
+    <textarea id="pedido" placeholder="Ex.: Faça uma versão de até 60 segundos, retire pausas longas, coloque legendas, formato vertical e mantenha a ideia principal."></textarea>
+    <button id="btnDescrever">Interpretar pedido</button>
+    <div id="msgDescrever"></div>
+  </section>
+
+  <section>
+    <h2>3. Transcrição e legendas <small>local, em pt-BR, com marcações de tempo; nada sai do seu computador</small></h2>
+    <div class="linha">
+      <div><label>Modelo (maior = mais preciso e mais lento)</label>
+        <select id="modelo"><option value="tiny">tiny (muito rápido)</option><option value="base">base</option><option value="small" selected>small (recomendado)</option><option value="medium">medium (mais preciso)</option><option value="large-v3">large-v3 (lento sem placa de vídeo)</option></select></div>
+      <div style="align-self:end"><button id="btnTranscrever">Transcrever</button></div>
+    </div>
+    <div id="msgTranscrever"></div>
+    <div id="transcricaoArea" style="display:none">
+      <p class="resumo">Corrija o texto direto na tabela. Palavras com <b>[?]</b> são incertas e linhas amarelas precisam de conferência. Marque “remover” para cortar a fala inteira do vídeo. Apagar o texto deixa o trecho sem legenda (o áudio continua).</p>
+      <table id="tabTranscricao"><thead><tr><th>#</th><th>Tempo</th><th>Texto</th><th>Remover</th></tr></thead><tbody></tbody></table>
+      <button id="btnSalvarTranscricao">Salvar correções e cortes de falas</button>
+      <label style="display:inline-block;margin-left:12px"><input type="checkbox" id="legendasAtivas" checked> Gravar legendas no vídeo</label>
+      <details style="margin-top:8px"><summary>Ver as legendas como ficarão (já com os cortes)</summary><div id="legendasPrevia" class="mono"></div></details>
+    </div>
+  </section>
+
+  <section>
+    <h2>4. Silêncios e cortes <small>sugestões são revisadas antes de aplicar; tudo pode ser desfeito</small></h2>
+    <div class="linha">
+      <div><label>Silêncio mínimo (s)</label><input type="number" id="silMin" value="0.7" step="0.1" min="0.2"></div>
+      <div><label>Limiar (dB)</label><input type="number" id="silLimiar" value="-35" step="1"></div>
+      <div style="align-self:end"><button id="btnSugerirSil" class="sec">Sugerir silêncios</button></div>
+    </div>
+    <div id="silenciosLista"></div>
+    <div class="linha" style="margin-top:10px">
+      <div><label>Cortar trecho por tempo: início</label><input type="text" id="corteIni" placeholder="ex.: 0:12.5"></div>
+      <div><label>fim</label><input type="text" id="corteFim" placeholder="ex.: 0:18"></div>
+      <div style="align-self:end"><button id="btnCortar" class="sec">Adicionar corte</button></div>
+    </div>
+    <div id="cortesLista"></div>
+    <div id="msgCortes"></div>
+  </section>
+
+  <section>
+    <h2>5. Formato, enquadramento, textos, logo e áudio</h2>
+    <div class="linha">
+      <div><label>Perfil de estilo</label><select id="perfil"></select></div>
+      <div><label>Formato</label><select id="formato"><option value="16:9">Horizontal 16:9</option><option value="9:16">Vertical 9:16</option><option value="1:1">Quadrado 1:1</option></select></div>
+      <div><label>Enquadramento</label><select id="enqModo"><option value="cortar">Recortar (preenche a tela)</option><option value="caber">Caber inteiro (com bordas)</option></select></div>
+      <div><label>Centro horizontal (0 = esquerda, 1 = direita): <span id="cxVal"></span></label><input type="range" id="enqCx" min="0" max="1" step="0.05"></div>
+      <div><label>Centro vertical (0 = topo, 1 = base): <span id="cyVal"></span></label><input type="range" id="enqCy" min="0" max="1" step="0.05"></div>
+      <div><label>Ver enquadramento no instante (s)</label><input type="number" id="enqTempo" value="5" step="1" min="0"></div>
+    </div>
+    <button id="btnEnquadramento" class="sec">Ver enquadramento</button>
+    <div class="cards" id="quadros" style="display:none"><div><p class="resumo">Original com a área que será usada</p><img class="quadro" id="quadroOrig"></div><div><p class="resumo">Resultado no formato escolhido</p><img class="quadro" id="quadroEnq" style="object-fit:contain"></div></div>
+    <div class="linha">
+      <div><label>Título (cartão de abertura; vazio = sem título)</label><input type="text" id="titulo"></div>
+      <div><label>Subtítulo</label><input type="text" id="subtitulo"></div>
+      <div><label>Encerramento (texto; vazio usa o do perfil)</label><input type="text" id="encTexto"></div>
+      <div><label><input type="checkbox" id="encAtivo"> Incluir cartão de encerramento</label></div>
+    </div>
+    <div class="linha">
+      <div><label>Logo (arquivos em “2-Identidade visual e referências/logos”)</label><select id="logoArquivo"></select></div>
+      <div><label>Enviar logo (PNG com fundo transparente)</label><input type="file" id="logoUpload" accept=".png,.jpg,.jpeg,.webp"></div>
+      <div><label>Posição</label><select id="logoPos"><option value="superior-direita">Superior direita</option><option value="superior-esquerda">Superior esquerda</option><option value="inferior-direita">Inferior direita</option><option value="inferior-esquerda">Inferior esquerda</option></select></div>
+      <div><label><input type="checkbox" id="logoAtivo"> Mostrar logo</label></div>
+    </div>
+    <div class="linha">
+      <div><label>Volume da voz (dB, ex.: 3 ou -2)</label><input type="number" id="ganho" step="0.5"></div>
+      <div><label><input type="checkbox" id="melhorarVoz"> Melhorar voz (graves cortados + compressão)</label></div>
+      <div><label><input type="checkbox" id="normalizar"> Normalizar volume (padrão de redes sociais)</label></div>
+    </div>
+    <button id="btnSalvarConfig">Salvar configurações</button>
+    <div id="msgConfig"></div>
+  </section>
+
+  <section>
+    <h2>6. Pré-visualizar <small>antes e depois, em baixa resolução para ser rápido</small></h2>
+    <button id="btnPrevia">Gerar prévia</button>
+    <div id="msgPrevia"></div>
+    <div class="cards"><div><p class="resumo">Antes (original)</p><video id="videoAntes" controls preload="metadata"></video></div><div><p class="resumo">Depois (prévia)</p><video id="videoDepois" controls preload="metadata"></video></div></div>
+  </section>
+
+  <section>
+    <h2>7. Exportar <small>MP4 com áudio e legendas embutidas + arquivo SRT ao lado, em “4-Vídeos exportados”</small></h2>
+    <label><input type="checkbox" class="fmt" value="16:9"> 16:9</label>
+    <label><input type="checkbox" class="fmt" value="9:16"> 9:16</label>
+    <label><input type="checkbox" class="fmt" value="1:1"> 1:1</label>
+    <label>Nome do arquivo (opcional)</label><input type="text" id="nomeExportar">
+    <button id="btnExportar">Exportar</button>
+    <button id="btnVerificar" class="sec">Verificar projeto</button>
+    <div id="msgExportar"></div>
+    <div id="exportados"></div>
+  </section>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let estado = null;
+let pollTimer = null;
+
+function fmtTempo(s) { s = Math.max(0, s || 0); const m = Math.floor(s / 60); const r = s - m * 60; return `${m}:${r.toFixed(1).padStart(4, "0")}`; }
+function msg(id, texto, tipo = "info") { const el = $(id); el.innerHTML = texto ? `<div class="msg ${tipo}">${texto}</div>` : ""; }
+function esc(t) { return String(t ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function urlArquivo(c) { return "/arquivo?caminho=" + encodeURIComponent(c); }
+
+async function api(rota, corpo) {
+  const r = await fetch("/api/" + rota, corpo === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+  const j = await r.json().catch(() => ({ erro: "Resposta inválida do servidor." }));
+  if (!r.ok || j.erro) throw new Error(j.erro || ("Erro " + r.status));
+  return j;
+}
+
+async function carregar() {
+  estado = await api("estado");
+  const sp = $("selProjeto"); sp.innerHTML = "<option value=''>— escolher —</option>" + estado.projetos.map(p => `<option value="${esc(p.id)}">${esc(p.nome)} (${fmtTempo(p.duracao)})</option>`).join("");
+  for (const id of ["perfilImportar", "perfil"]) { $(id).innerHTML = estado.perfis.map(p => `<option value="${esc(p.id)}">${esc(p.nome)} (${p.tipo})</option>`).join(""); }
+  if (estado.aviso) msg("msgImportar", estado.aviso, "erro");
+  const p = estado.projeto;
+  $("comProjeto").style.display = p ? "" : "none";
+  if (!p) { $("resumoTopo").textContent = "Importe um vídeo para começar."; mostrarTarefa(estado.tarefa); return; }
+  sp.value = p.id;
+  $("resumoTopo").textContent = `${p.origem.arquivo} · ${p.origem.info.largura}x${p.origem.info.altura} · original ${fmtTempo(p.origem.info.duracao)} · editado ${fmtTempo(p.duracao_editada)} · ${p.remocoes.length} remoção(ões)`;
+  $("perfil").value = p.perfil; $("perfilImportar").value = p.perfil; $("formato").value = p.formato;
+  $("enqModo").value = p.enquadramento.modo; $("enqCx").value = p.enquadramento.centro_x; $("enqCy").value = p.enquadramento.centro_y;
+  $("cxVal").textContent = p.enquadramento.centro_x; $("cyVal").textContent = p.enquadramento.centro_y;
+  $("titulo").value = p.titulo.texto || ""; $("subtitulo").value = p.titulo.subtitulo || "";
+  $("encTexto").value = p.encerramento.texto || ""; $("encAtivo").checked = !!p.encerramento.ativo;
+  $("logoPos").value = p.logo.posicao || p.perfil_dados.logo.posicao; $("logoAtivo").checked = p.logo.ativo !== false;
+  $("ganho").value = p.audio.ganho_db ?? 0; $("melhorarVoz").checked = p.audio.melhorar_voz !== false; $("normalizar").checked = p.audio.normalizar !== false;
+  $("legendasAtivas").checked = p.legendas.ativas !== false;
+  document.querySelectorAll(".fmt").forEach(c => c.checked = c.value === p.formato);
+  const logos = await api("logos");
+  $("logoArquivo").innerHTML = "<option value=''>(usar a do perfil: " + esc(p.perfil_dados.logo.arquivo || "nenhuma") + ")</option>" + logos.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
+  $("logoArquivo").value = p.logo.arquivo || "";
+  $("videoAntes").src = urlArquivo(p.origem_caminho);
+  if (p.previas.length) $("videoDepois").src = urlArquivo(p.previas[p.previas.length - 1]);
+  renderTranscricao(p); renderSilencios(p); renderCortes(p); renderLegendas(p);
+  mostrarTarefa(estado.tarefa);
+  carregarExportados();
+}
+
+function renderTranscricao(p) {
+  const area = $("transcricaoArea");
+  if (!p.transcricao) { area.style.display = "none"; return; }
+  area.style.display = "";
+  const tb = $("tabTranscricao").querySelector("tbody");
+  tb.innerHTML = p.transcricao.segmentos.map(s => `
+    <tr class="${s.incerto && !s.revisado ? "incerto" : ""} ${s.mantido ? "" : "removida"}" data-id="${s.id}">
+      <td>${s.id}</td><td class="mono">${fmtTempo(s.inicio)}<br>${fmtTempo(s.fim)}</td>
+      <td><textarea data-id="${s.id}">${esc(s.texto_marcado)}</textarea>${s.incerto && !s.revisado ? `<span class="tag aviso">conferir: ${esc(s.motivo_incerteza)}</span>` : ""}${s.revisado ? '<span class="tag">revisado</span>' : ""}</td>
+      <td><input type="checkbox" class="remFala" value="${s.id}" ${s.mantido ? "" : "checked disabled"}></td></tr>`).join("");
+  const inc = p.transcricao.segmentos.filter(s => s.incerto && !s.revisado).length;
+  msg("msgTranscrever", `${p.transcricao.segmentos.length} trechos (modelo ${p.transcricao.modelo}). ${inc ? inc + " trecho(s) incerto(s) para conferir." : "Nenhum trecho incerto pendente."}`, inc ? "info" : "ok");
+}
+
+function renderLegendas(p) {
+  const el = $("legendasPrevia");
+  if (!p.legendas_previa) { el.textContent = ""; return; }
+  el.innerHTML = p.legendas_previa.map((l, i) => `${i + 1}. ${fmtTempo(l.inicio)} → ${fmtTempo(l.fim)}  ${esc(l.texto).replace(/\n/g, " / ")}`).join("<br>");
+}
+
+function renderSilencios(p) {
+  const el = $("silenciosLista");
+  const lista = p.silencios_sugeridos || [];
+  if (!lista.length) { el.innerHTML = "<p class='resumo'>Nenhuma sugestão ainda. Clique em “Sugerir silêncios”.</p>"; return; }
+  el.innerHTML = `<table><thead><tr><th>Aplicar</th><th>#</th><th>Início</th><th>Fim</th><th>Duração</th><th>Situação</th></tr></thead><tbody>` +
+    lista.map(s => `<tr><td><input type="checkbox" class="selSil" value="${s.id}" ${s.ja_removido ? "disabled" : "checked"}></td><td>${s.id}</td><td>${fmtTempo(s.inicio)}</td><td>${fmtTempo(s.fim)}</td><td>${s.duracao.toFixed(2)}s</td><td>${s.ja_removido ? "já removido" : "sugerido"}</td></tr>`).join("") +
+    `</tbody></table><button id="btnAplicarSil">Aplicar os silêncios marcados</button><button id="btnDesfazerSil" class="perigo">Desfazer remoções de silêncio</button>`;
+  $("btnAplicarSil").onclick = async () => {
+    const ids = [...document.querySelectorAll(".selSil:checked")].map(c => +c.value);
+    if (!ids.length) return msg("msgCortes", "Nenhum silêncio marcado.", "erro");
+    try { const r = await api("silencios/aplicar", { ids }); msg("msgCortes", `${r.aplicados} silêncio(s) removido(s). Duração editada: ${fmtTempo(r.duracao_editada)}.`, "ok"); carregar(); } catch (e) { msg("msgCortes", e.message, "erro"); }
+  };
+  $("btnDesfazerSil").onclick = async () => { try { const r = await api("silencios/desfazer", {}); msg("msgCortes", `${r.desfeitas} remoção(ões) desfeita(s).`, "ok"); carregar(); } catch (e) { msg("msgCortes", e.message, "erro"); } };
+}
+
+function renderCortes(p) {
+  const el = $("cortesLista");
+  if (!p.remocoes.length) { el.innerHTML = "<p class='resumo'>Nenhuma remoção: o vídeo sai inteiro.</p>"; return; }
+  el.innerHTML = `<table><thead><tr><th>#</th><th>Início</th><th>Fim</th><th>Motivo</th><th></th></tr></thead><tbody>` +
+    p.remocoes.map(r => `<tr><td>${r.id}</td><td>${fmtTempo(r.inicio)}</td><td>${fmtTempo(r.fim)}</td><td>${esc(r.motivo)} ${esc(r.rotulo || "")}</td><td><button class="sec desfazerCorte" data-id="${r.id}">desfazer</button></td></tr>`).join("") +
+    `</tbody></table><p class="resumo">Trechos mantidos: ${p.trechos_mantidos.map(t => fmtTempo(t[0]) + "–" + fmtTempo(t[1])).join(", ")} · duração editada ${fmtTempo(p.duracao_editada)}</p><button class="perigo" id="btnLimparCortes">Apagar todas as remoções</button>`;
+  el.querySelectorAll(".desfazerCorte").forEach(b => b.onclick = async () => { try { await api("cortes/remover", { ids: [+b.dataset.id] }); carregar(); } catch (e) { msg("msgCortes", e.message, "erro"); } });
+  $("btnLimparCortes").onclick = async () => { if (!confirm("Apagar todas as remoções deste projeto?")) return; try { await api("cortes/remover", { todos: true }); carregar(); } catch (e) { msg("msgCortes", e.message, "erro"); } };
+}
+
+async function carregarExportados() {
+  const lista = await api("exportados");
+  $("exportados").innerHTML = lista.length ? "<table><thead><tr><th>Arquivo</th><th>Tamanho</th><th>Legendas</th></tr></thead><tbody>" +
+    lista.map(e => `<tr><td><a href="${urlArquivo(e.arquivo)}" download>${esc(e.nome)}</a></td><td>${e.tamanho_mb} MB</td><td>${e.srt ? `<a href="${urlArquivo(e.srt)}" download>SRT</a>` : "—"}</td></tr>`).join("") + "</tbody></table>" : "";
+}
+
+// ------------------------------------------------ tarefas em segundo plano
+function mostrarTarefa(t) {
+  const el = $("tarefa");
+  if (!t || (!t.ativa && !t.erro && t.progresso === 0)) { el.style.display = "none"; return; }
+  el.style.display = t.ativa ? "" : "none";
+  $("tarefaTexto").textContent = `${t.nome}: ${t.mensagem} (${Math.round(t.progresso * 100)}%)`;
+  $("tarefaBarra").style.width = (t.progresso * 100) + "%";
+  document.querySelectorAll("button").forEach(b => b.disabled = !!t.ativa);
+}
+function acompanhar(idMsg, aoTerminar) {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const t = await api("tarefa");
+      mostrarTarefa(t);
+      if (!t.ativa) {
+        clearInterval(pollTimer);
+        if (t.erro) msg(idMsg, "Falhou: " + t.erro, "erro"); else { aoTerminar && aoTerminar(t.resultado); }
+        await carregar();
+      }
+    } catch (e) { clearInterval(pollTimer); msg(idMsg, e.message, "erro"); }
+  }, 1000);
+}
+
+// ------------------------------------------------ ações
+$("selProjeto").onchange = async () => { if ($("selProjeto").value) { await api("projeto/selecionar", { id: $("selProjeto").value }); carregar(); } };
+
+$("btnImportar").onclick = async () => {
+  const arq = $("arqVideo").files[0];
+  const perfil = $("perfilImportar").value, nome = $("nomeProjeto").value.trim();
+  msg("msgImportar", "");
+  try {
+    if (arq) {
+      const prog = $("progImportar"); prog.style.display = ""; prog.firstElementChild.style.width = "0%";
+      await new Promise((res, rej) => {
+        const x = new XMLHttpRequest();
+        x.open("POST", `/api/importar/upload?nome=${encodeURIComponent(arq.name)}&perfil=${encodeURIComponent(perfil)}&nome_projeto=${encodeURIComponent(nome)}`);
+        x.upload.onprogress = ev => { if (ev.lengthComputable) prog.firstElementChild.style.width = (ev.loaded / ev.total * 100) + "%"; };
+        x.onload = () => { try { const j = JSON.parse(x.responseText); j.erro ? rej(new Error(j.erro)) : res(j); } catch { rej(new Error("Resposta inválida")); } };
+        x.onerror = () => rej(new Error("Falha de rede no envio."));
+        x.send(arq);
+      });
+      prog.style.display = "none";
+      msg("msgImportar", "Vídeo importado e projeto criado.", "ok");
+    } else if ($("caminhoVideo").value.trim()) {
+      await api("importar/caminho", { caminho: $("caminhoVideo").value.trim(), nome, perfil });
+      msg("msgImportar", "Vídeo importado e projeto criado.", "ok");
+    } else { return msg("msgImportar", "Escolha um arquivo ou informe o caminho.", "erro"); }
+    $("arqVideo").value = ""; $("caminhoVideo").value = ""; $("nomeProjeto").value = "";
+    carregar();
+  } catch (e) { $("progImportar").style.display = "none"; msg("msgImportar", e.message, "erro"); }
+};
+
+$("btnDescrever").onclick = async () => {
+  try {
+    const r = await api("descrever", { pedido: $("pedido").value });
+    let html = r.entendido.length ? "<b>Entendi:</b><br>" + r.entendido.map(e => "✓ " + esc(e)).join("<br>") : "Não reconheci nenhum pedido.";
+    if (r.nao_entendido.length) html += "<br><b>Não entendi</b> (peça na conversa com o Claude ou use os controles abaixo):<br>" + r.nao_entendido.map(e => "? " + esc(e)).join("<br>");
+    if (r.acoes.includes("transcrever")) html += "<br>→ Para legendas, transcreva primeiro (seção 3).";
+    if (r.silencios) html += `<br>→ ${r.silencios.length} silêncio(s) sugerido(s): revise e aplique na seção 4.`;
+    if (r.duracao_alvo) html += `<br>→ Duração editada ${fmtTempo(r.duracao_editada)} / alvo ${r.duracao_alvo}s` + (r.duracao_editada > r.duracao_alvo ? ` — faltam cortar ${(r.duracao_editada - r.duracao_alvo).toFixed(1)}s (escolha falas na seção 3).` : " — dentro do alvo.");
+    if (r.acoes.includes("propor_cortes")) html += "<br>→ Escolher a “ideia principal” exige ler a transcrição: peça ao Claude uma proposta de cortes ou marque as falas na seção 3.";
+    msg("msgDescrever", html, r.nao_entendido.length ? "info" : "ok");
+    carregar();
+  } catch (e) { msg("msgDescrever", e.message, "erro"); }
+};
+
+$("btnTranscrever").onclick = async () => {
+  try { await api("transcrever", { modelo: $("modelo").value }); msg("msgTranscrever", "Transcrevendo…", "info");
+    acompanhar("msgTranscrever", r => msg("msgTranscrever", `Transcrição concluída: ${r.trechos} trechos.` + (r.incertos.length ? ` Conferir: ${r.incertos.join(", ")}.` : ""), "ok")); }
+  catch (e) { msg("msgTranscrever", e.message, "erro"); }
+};
+
+$("btnSalvarTranscricao").onclick = async () => {
+  try {
+    const segmentos = [...document.querySelectorAll("#tabTranscricao textarea")].map(t => ({ id: +t.dataset.id, texto: t.value }));
+    const r = await api("transcricao/corrigir", { segmentos });
+    const falas = [...document.querySelectorAll(".remFala:checked:not(:disabled)")].map(c => +c.value);
+    if (falas.length) await api("cortes/adicionar", { falas });
+    await api("configurar", { legendas: { ativas: $("legendasAtivas").checked } });
+    msg("msgTranscrever", `Correções salvas (${r.alterados} trechos)` + (falas.length ? `, ${falas.length} fala(s) removida(s)` : "") + ".", "ok");
+    carregar();
+  } catch (e) { msg("msgTranscrever", e.message, "erro"); }
+};
+$("legendasAtivas").onchange = () => api("configurar", { legendas: { ativas: $("legendasAtivas").checked } }).catch(e => msg("msgTranscrever", e.message, "erro"));
+
+$("btnSugerirSil").onclick = async () => { try { const r = await api("silencios/sugerir", { min: +$("silMin").value, limiar: +$("silLimiar").value }); msg("msgCortes", `${r.silencios.length} silêncio(s) sugerido(s). Marque os que quer remover e aplique.`, r.silencios.length ? "info" : "ok"); carregar(); } catch (e) { msg("msgCortes", e.message, "erro"); } };
+
+function lerTempo(t) { t = String(t).trim().replace(",", "."); if (!t) throw new Error("Informe início e fim."); const p = t.split(":").map(Number); if (p.some(isNaN)) throw new Error("Tempo inválido: " + t); return p.reduce((a, b) => a * 60 + b, 0); }
+$("btnCortar").onclick = async () => { try { const inicio = lerTempo($("corteIni").value), fim = lerTempo($("corteFim").value); const r = await api("cortes/adicionar", { inicio, fim }); msg("msgCortes", `Corte adicionado. Duração editada: ${fmtTempo(r.duracao_editada)}.`, "ok"); $("corteIni").value = $("corteFim").value = ""; carregar(); } catch (e) { msg("msgCortes", e.message, "erro"); } };
+
+$("enqCx").oninput = () => $("cxVal").textContent = $("enqCx").value; $("enqCy").oninput = () => $("cyVal").textContent = $("enqCy").value;
+async function salvarConfig() {
+  await api("configurar", {
+    perfil: $("perfil").value, formato: $("formato").value,
+    enquadramento: { modo: $("enqModo").value, centro_x: +$("enqCx").value, centro_y: +$("enqCy").value },
+    titulo: { texto: $("titulo").value.trim(), subtitulo: $("subtitulo").value.trim() },
+    encerramento: { texto: $("encTexto").value.trim(), ativo: $("encAtivo").checked },
+    logo: { arquivo: $("logoArquivo").value || null, posicao: $("logoPos").value, ativo: $("logoAtivo").checked },
+    audio: { ganho_db: +$("ganho").value || 0, melhorar_voz: $("melhorarVoz").checked, normalizar: $("normalizar").checked },
+  });
+}
+$("btnSalvarConfig").onclick = async () => { try { await salvarConfig(); msg("msgConfig", "Configurações salvas no projeto.", "ok"); carregar(); } catch (e) { msg("msgConfig", e.message, "erro"); } };
+$("btnEnquadramento").onclick = async () => {
+  try { await salvarConfig(); const r = await api("enquadramento", { tempo: +$("enqTempo").value, formato: $("formato").value });
+    $("quadros").style.display = ""; $("quadroOrig").src = urlArquivo(r.original) + "&t=" + Date.now(); $("quadroEnq").src = urlArquivo(r.enquadrado) + "&t=" + Date.now();
+    msg("msgConfig", r.enquadramento.modo === "cortar" ? "A área marcada em destaque é a que entra no vídeo. Ajuste o centro e veja de novo." : "Modo “caber”: o vídeo inteiro aparece, com bordas na cor do perfil.", "info"); }
+  catch (e) { msg("msgConfig", e.message, "erro"); }
+};
+$("logoUpload").onchange = async () => {
+  const f = $("logoUpload").files[0]; if (!f) return;
+  try { const r = await fetch("/api/logo/upload?nome=" + encodeURIComponent(f.name), { method: "POST", body: f }); const j = await r.json(); if (j.erro) throw new Error(j.erro); msg("msgConfig", "Logo enviada e selecionada.", "ok"); carregar(); } catch (e) { msg("msgConfig", e.message, "erro"); }
+};
+
+$("btnPrevia").onclick = async () => {
+  try { await salvarConfig(); await api("previsualizar", { formato: $("formato").value }); msg("msgPrevia", "Gerando prévia…", "info");
+    acompanhar("msgPrevia", r => { msg("msgPrevia", `Prévia pronta (${r.formato}, ${r.legendas} legendas, ${r.trechos} trecho(s), duração prevista ${fmtTempo(r.duracao_prevista)}). Conferência: ${r.conferencia.ok ? "vídeo e áudio presentes" : "PROBLEMA: " + JSON.stringify(r.conferencia)}`, r.conferencia.ok ? "ok" : "erro"); $("videoDepois").src = urlArquivo(r.arquivo) + "&t=" + Date.now(); }); }
+  catch (e) { msg("msgPrevia", e.message, "erro"); }
+};
+
+$("btnExportar").onclick = async () => {
+  const formatos = [...document.querySelectorAll(".fmt:checked")].map(c => c.value);
+  if (!formatos.length) return msg("msgExportar", "Marque pelo menos um formato.", "erro");
+  try { await salvarConfig(); await api("exportar", { formatos, nome: $("nomeExportar").value.trim() }); msg("msgExportar", "Exportando…", "info");
+    acompanhar("msgExportar", r => msg("msgExportar", r.exportacoes.map(e => `✓ ${e.arquivo}` + (e.srt ? `\n   SRT: ${e.srt}` : "") + `\n   ${e.conferencia.ok ? `${e.conferencia.largura}x${e.conferencia.altura}, ${e.conferencia.duracao}s, vídeo e áudio ok` : "PROBLEMA: " + JSON.stringify(e.conferencia)}`).join("\n"), r.exportacoes.every(e => e.conferencia.ok) ? "ok" : "erro")); }
+  catch (e) { msg("msgExportar", e.message, "erro"); }
+};
+$("btnVerificar").onclick = async () => { try { const r = await api("verificar", {}); msg("msgExportar", r.itens.map(i => (i.ok ? "✓ " : "✗ ") + i.nome + (i.detalhe ? " — " + i.detalhe : "")).join("\n") + "\n\n" + (r.ok ? "TUDO OK" : "HÁ PENDÊNCIAS"), r.ok ? "ok" : "erro"); } catch (e) { msg("msgExportar", e.message, "erro"); } };
+
+carregar().catch(e => msg("msgImportar", "Não consegui falar com o servidor: " + e.message, "erro"));
+</script>
+</body>
+</html>
