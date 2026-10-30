@@ -423,6 +423,49 @@ def cmd_interface(args):
     servidor.iniciar(porta=args.porta, abrir=not args.nao_abrir)
 
 
+def cmd_autoteste(args):
+    """Confere FFmpeg, dependências e renderiza 2 s com legenda, sem mexer nos projetos do usuário."""
+    import subprocess
+    import tempfile
+    from .util import ffmpeg_bin, info_video, escapar_filtro
+    from .legendas import escrever_ass
+    falhas = []
+    imprimir(f"Pasta principal: {RAIZ}")
+    for nome in ("ffmpeg", "ffprobe"):
+        try:
+            caminho = ffmpeg_bin(nome)
+            versao = subprocess.run([caminho, "-version"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.splitlines()[0]
+            imprimir(f"  [OK] {nome}: {versao}")
+        except ErroEdicao as e:
+            falhas.append(str(e)); imprimir(f"  [X] {e}")
+    try:
+        import faster_whisper, ctranslate2, numpy  # noqa: F401
+        imprimir(f"  [OK] faster-whisper {faster_whisper.__version__}, ctranslate2 {ctranslate2.__version__}, numpy {numpy.__version__}")
+    except Exception as e:  # noqa: BLE001
+        falhas.append(f"dependência Python ausente: {e}"); imprimir(f"  [X] dependência Python ausente: {e}")
+    if falhas:
+        imprimir("Teste final: FALHOU"); sys.exit(1)
+    # Renderização curta com legenda, em pasta temporária (com espaço e acento no nome, de propósito)
+    with tempfile.TemporaryDirectory(prefix="edição com ia ") as tmp:
+        pasta = Path(tmp)
+        perfil = estilos.carregar_perfil("consul-sindico")
+        escrever_ass([{"inicio": 0.2, "fim": 1.8, "texto": "Teste de legenda\ncom acentuação: ção, ê, ã"}], pasta / "legendas.ass", perfil, 640, 360)
+        saida = pasta / "teste.mp4"
+        cmd = [ffmpeg_bin(), "-hide_banner", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=0x0A1A3C:s=640x360:r=30:d=2",
+               "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=2",
+               "-vf", "ass=legendas.ass,format=yuv420p", "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac", "-shortest", str(saida)]
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(pasta))
+        if r.returncode != 0:
+            imprimir("  [X] Falha ao renderizar o vídeo de teste:\n" + r.stderr.strip()[-600:])
+            imprimir("Teste final: FALHOU"); sys.exit(1)
+        info = info_video(saida)
+        ok = info["tem_video"] and info["tem_audio"] and 1.5 < info["duracao"] < 2.5
+        imprimir(f"  [{'OK' if ok else 'X'}] Vídeo de 2 s renderizado com legenda e áudio ({info['largura']}x{info['altura']}, {info['duracao']:.2f}s), em pasta com espaço e acento")
+        if not ok:
+            imprimir("Teste final: FALHOU"); sys.exit(1)
+    imprimir("Teste final: OK")
+
+
 def cmd_pastas(args):
     garantir_pastas()
     estilos.criar_perfis_iniciais()
@@ -441,6 +484,7 @@ def construir_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="comando", required=True)
 
     s = sub.add_parser("pastas", help="cria/mostra a estrutura de pastas"); s.set_defaults(fn=cmd_pastas)
+    s = sub.add_parser("autoteste", help="confere FFmpeg e dependências e renderiza um clipe de 2 s"); s.set_defaults(fn=cmd_autoteste)
 
     s = sub.add_parser("importar", help="copia o vídeo para o material bruto e cria um projeto")
     s.add_argument("arquivo"); s.add_argument("--nome"); s.add_argument("--perfil", default="pessoal"); s.set_defaults(fn=cmd_importar)

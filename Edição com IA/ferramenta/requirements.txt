@@ -1,4 +1,10 @@
-# Transcrição local em português (Whisper otimizado para CPU)
-faster-whisper>=1.1,<2
-numpy>=1.24
-# O FFmpeg NÃO é instalado pelo pip: veja o LEIA-ME.md
+# Dependências com versões fixadas (testadas em 30/10/2026 com Python 3.13).
+# Precisa de Python 3.11 a 3.14 (64 bits). O FFmpeg NÃO é instalado pelo pip: veja o LEIA-ME.md.
+faster-whisper==1.2.1
+ctranslate2==4.8.4
+onnxruntime==1.31.1
+tokenizers==0.23.3
+huggingface-hub>=0.34,<1.0
+numpy==2.5.4
+tqdm==4.70.1
+av==19.0.2

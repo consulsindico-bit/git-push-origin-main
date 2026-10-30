@@ -17,6 +17,24 @@ from . import transcricao as mod_transcricao, verificar as mod_verificar
 from .util import (PASTA_BRUTO, PASTA_EXPORTADOS, PASTA_INTERFACE, PASTA_LOGOS, RAIZ, EXTENSOES_VIDEO, ErroEdicao,
                    garantir_pastas, nome_seguro)
 
+# ---------------------------------------------------------------- dependências
+
+def verificar_dependencias() -> list[str]:
+    """Lista problemas de dependência em linguagem clara (vazia = tudo certo)."""
+    import shutil
+    problemas = []
+    for nome in ("ffmpeg", "ffprobe"):
+        if not shutil.which(nome):
+            problemas.append(f"O programa '{nome}' não foi encontrado. Instale o FFmpeg (Windows: winget install --id Gyan.FFmpeg -e) "
+                             "e abra a interface de novo.")
+    try:
+        import faster_whisper  # noqa: F401
+    except Exception:  # noqa: BLE001
+        problemas.append("O pacote 'faster-whisper' não está instalado: a transcrição e as legendas não vão funcionar. "
+                         "Rode o instalador (instalar.bat) de novo.")
+    return problemas
+
+
 # ---------------------------------------------------------------- estado
 
 _trava = threading.Lock()
@@ -198,7 +216,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _estado_completo(self) -> dict:
         saida = {"projetos": mod_projeto.listar_projetos(), "perfis": estilos.listar_perfis(),
-                 "projeto": None, "pastas": {"raiz": str(RAIZ), "bruto": str(PASTA_BRUTO), "logos": str(PASTA_LOGOS),
+                 "dependencias": verificar_dependencias(), "projeto": None, "pastas": {"raiz": str(RAIZ), "bruto": str(PASTA_BRUTO), "logos": str(PASTA_LOGOS),
                                              "exportados": str(PASTA_EXPORTADOS)}}
         with _trava:
             saida["tarefa"] = dict(_estado["tarefa"])
@@ -449,7 +467,13 @@ def iniciar(porta: int = 8765, abrir: bool = True) -> None:
     projetos = mod_projeto.listar_projetos()
     if projetos:
         _estado["projeto_atual"] = projetos[-1]["id"]
-    servidor = ThreadingHTTPServer(("127.0.0.1", porta), Handler)
+    for problema in verificar_dependencias():
+        print(f"[!] {problema}", flush=True)
+    try:
+        servidor = ThreadingHTTPServer(("127.0.0.1", porta), Handler)
+    except OSError as e:
+        raise ErroEdicao(f"Não consegui abrir a porta {porta} ({e}). Talvez a interface já esteja aberta em outra janela; "
+                         f"feche-a ou use: python -m editor interface --porta {porta + 1}")
     servidor.daemon_threads = True
     endereco = f"http://127.0.0.1:{porta}/"
     print(f"Interface aberta em {endereco}  (só nesta máquina; Ctrl+C para fechar)", flush=True)

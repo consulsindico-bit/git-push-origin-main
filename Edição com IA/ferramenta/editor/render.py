@@ -205,7 +205,8 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
     # --- Vídeo: enquadramento, fps, legendas, logo
     cadeia_v = [_filtro_enquadramento(info, plano, perfil), f"fps={FPS_SAIDA}", "format=yuv420p"]
     if arq_ass:
-        fontsdir = f":fontsdir='{escapar_filtro(str(PASTA_FONTES))}'" if PASTA_FONTES.exists() else ""
+        tem_fontes = PASTA_FONTES.exists() and any(f.suffix.lower() in (".ttf", ".otf") for f in PASTA_FONTES.iterdir())
+        fontsdir = f":fontsdir='{escapar_filtro(str(PASTA_FONTES))}'" if tem_fontes else ""
         cadeia_v.append(f"ass='{escapar_filtro(arq_ass.name)}'{fontsdir}")
     fc.append("[vc]" + ",".join(cadeia_v) + "[vp]")
     if indice_logo is not None:
@@ -260,7 +261,7 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
             n += 1
         codec = ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-profile:v", "high", "-pix_fmt", "yuv420p",
                  "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]
-    args = entradas + ["-filter_complex_script", str(trabalho / "filtro.txt"),
+    args = entradas + ["-filter_complex_script", "filtro.txt",
                        "-map", "[vout]", "-map", "[aout]", "-r", str(FPS_SAIDA)] + codec + [str(saida)]
     executar_ffmpeg_com_progresso(args, duracao_total, ao_progredir, descricao=qualidade, cwd=trabalho)
 

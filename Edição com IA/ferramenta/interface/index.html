@@ -50,6 +50,7 @@
   <div>Projeto: <select id="selProjeto"></select></div>
   <div id="resumoTopo" class="resumo" style="color:#dfe3ee"></div>
 </header>
+<div id="dependencias" class="msg erro" style="display:none;margin:12px 20px 0;border-radius:8px"></div>
 <div id="tarefa"><span id="tarefaTexto"></span><div class="progresso"><div id="tarefaBarra"></div></div></div>
 
 <main>
@@ -196,6 +197,8 @@ async function carregar() {
   const sp = $("selProjeto"); sp.innerHTML = "<option value=''>— escolher —</option>" + estado.projetos.map(p => `<option value="${esc(p.id)}">${esc(p.nome)} (${fmtTempo(p.duracao)})</option>`).join("");
   for (const id of ["perfilImportar", "perfil"]) { $(id).innerHTML = estado.perfis.map(p => `<option value="${esc(p.id)}">${esc(p.nome)} (${p.tipo})</option>`).join(""); }
   if (estado.aviso) msg("msgImportar", estado.aviso, "erro");
+  const dep = $("dependencias"); dep.style.display = estado.dependencias.length ? "" : "none";
+  dep.textContent = estado.dependencias.length ? "Atenção, falta algo no computador:\n" + estado.dependencias.map(d => "• " + d).join("\n") : "";
   const p = estado.projeto;
   $("comProjeto").style.display = p ? "" : "none";
   if (!p) { $("resumoTopo").textContent = "Importe um vídeo para começar."; mostrarTarefa(estado.tarefa); return; }

@@ -11,7 +11,7 @@ PERFIL_PADRAO = {
     "tipo": "pessoal",
     "descricao": "Estilo neutro para vídeos pessoais.",
     "cores": {"primaria": "#111111", "destaque": "#FFD200", "texto": "#FFFFFF"},
-    "fonte": {"familia": "DejaVu Sans", "arquivo": None, "negrito": True},
+    "fonte": {"familia": "Arial", "arquivo": None, "negrito": True},
     "legendas": {
         "posicao": "inferior",          # inferior | centro | superior
         "margem_vertical": 0.10,        # fração da altura
@@ -122,4 +122,4 @@ def caminho_fonte(perfil: dict) -> tuple[str, Path | None]:
             p = PASTA_FONTES / arquivo
         if p.exists():
             return fonte.get("familia") or p.stem, p
-    return fonte.get("familia") or "DejaVu Sans", None
+    return fonte.get("familia") or "Arial", None

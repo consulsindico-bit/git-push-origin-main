@@ -16,7 +16,7 @@ Ferramenta simples para editar vídeos **no seu computador**, em português, usa
 
 Requisitos: **Python 3.10+** e **FFmpeg** (com libass, que já vem nos pacotes oficiais).
 
-- **Windows**: instale o FFmpeg (`winget install Gyan.FFmpeg`) e o Python (python.org, marcando *Add python to PATH*). Depois abra o PowerShell em `ferramenta/` e rode `powershell -ExecutionPolicy Bypass -File instalar.ps1`.
+- **Windows 10/11**: clique duas vezes em `ferramenta/instalar.bat`. Ele verifica Python (3.11 a 3.14, 64 bits), FFmpeg e Git, oferece instalar o que faltar pelo `winget`, cria o ambiente virtual, instala as dependências fixadas, confirma o FFmpeg e roda um teste final (renderiza 2 s com legenda numa pasta com espaço e acento). Se algo faltar, ele diz o que instalar e pede para rodar de novo. Para instalar manualmente antes: `winget install --id Python.Python.3.12 -e` e `winget install --id Gyan.FFmpeg -e`, depois feche e abra o terminal.
 - **macOS**: `brew install ffmpeg python` e depois, em `ferramenta/`, `bash instalar.sh`.
 - **Linux**: `sudo apt install ffmpeg python3-venv` e depois `bash instalar.sh`.
 
@@ -84,4 +84,4 @@ Para criar outro perfil, copie um dos arquivos com novo nome e altere os valores
 - Download de redes sociais (yt-dlp) não faz parte desta versão.
 - A interpretação de pedidos na interface é por regras simples; pedidos que exigem julgamento (“mantenha a ideia principal”) são decididos na conversa com o Claude.
 - Não há reconhecimento de rosto para enquadramento automático: o centro do recorte é ajustado manualmente, com imagem de conferência.
-- Testado apenas em Linux (ambiente desta sessão). Os scripts para Windows e macOS seguem o mesmo fluxo, mas ainda não foram executados nesses sistemas.
+- Testado de ponta a ponta apenas em Linux (ambiente desta sessão). O `instalar.ps1` e os `.bat` foram escritos e revisados para Windows 11, mas ainda não foram executados em uma máquina Windows: o primeiro teste real será o seu.

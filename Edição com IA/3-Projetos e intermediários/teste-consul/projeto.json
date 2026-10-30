@@ -807,6 +807,18 @@
     {
       "quando": "2026-10-30T19:47:20",
       "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.mp4"
+    },
+    {
+      "quando": "2026-10-30T20:01:00",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-16x9.mp4"
+    },
+    {
+      "quando": "2026-10-30T20:01:31",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-9x16.mp4"
+    },
+    {
+      "quando": "2026-10-30T20:01:56",
+      "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.mp4"
     }
   ],
   "exportacoes": [
@@ -821,7 +833,7 @@
       "titulo": true,
       "encerramento": true,
       "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-16x9.srt",
-      "quando": "2026-10-30T19:46:35"
+      "quando": "2026-10-30T20:01:00"
     },
     {
       "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-9x16.mp4",
@@ -834,7 +846,7 @@
       "titulo": true,
       "encerramento": true,
       "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-9x16.srt",
-      "quando": "2026-10-30T19:47:01"
+      "quando": "2026-10-30T20:01:31"
     },
     {
       "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.mp4",
@@ -847,7 +859,7 @@
       "titulo": true,
       "encerramento": true,
       "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.srt",
-      "quando": "2026-10-30T19:47:20"
+      "quando": "2026-10-30T20:01:56"
     }
   ],
   "silencios_parametros": {
