@@ -58,6 +58,25 @@ def cmd_importar(args):
     _resumo(pasta, dados)
 
 
+def cmd_renomear(args):
+    """Renomeia o projeto (nome exibido e pasta). O vídeo original e as exportações não mudam."""
+    import shutil
+    projeto = args.projeto or input("Nome atual do projeto: ").strip().strip('"')
+    novo = " ".join(args.novo_nome) if args.novo_nome else input("Novo nome: ").strip().strip('"')
+    if not novo.strip():
+        raise ErroEdicao("O novo nome não pode ficar vazio.")
+    pasta, dados = mod_projeto.carregar(projeto)
+    nova_pasta = PASTA_PROJETOS / nome_seguro(novo)
+    if nova_pasta.exists() and nova_pasta != pasta:
+        raise ErroEdicao(f"Já existe um projeto na pasta '{nova_pasta.name}'. Escolha outro nome.")
+    dados["nome"] = novo.strip()
+    mod_projeto.salvar(pasta, dados, acao=f"renomeado para '{novo.strip()}'")
+    if nova_pasta != pasta:
+        shutil.move(str(pasta), str(nova_pasta))
+    imprimir(f"Projeto renomeado: '{novo.strip()}'  (pasta: {nova_pasta.name})")
+    imprimir("Na interface e nos comandos, use o nome novo ou o nome da pasta.")
+
+
 def cmd_projetos(args):
     lista = mod_projeto.listar_projetos()
     if not lista:
@@ -599,6 +618,8 @@ def construir_parser() -> argparse.ArgumentParser:
     s.add_argument("arquivo"); s.add_argument("--nome"); s.add_argument("--perfil", default="pessoal"); s.set_defaults(fn=cmd_importar)
 
     s = sub.add_parser("projetos", help="lista os projetos"); s.set_defaults(fn=cmd_projetos)
+    s = sub.add_parser("renomear", help="renomeia um projeto (pergunta os nomes se não forem informados)")
+    s.add_argument("projeto", nargs="?"); s.add_argument("novo_nome", nargs="*"); s.set_defaults(fn=cmd_renomear)
     s = sub.add_parser("info", help="resumo do projeto"); s.add_argument("projeto"); s.set_defaults(fn=cmd_info)
 
     s = sub.add_parser("transcrever", help="transcreve em pt-BR com tempos (local, Whisper)")
