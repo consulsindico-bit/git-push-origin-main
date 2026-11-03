@@ -132,6 +132,8 @@
       <div><label>Ver enquadramento no instante (s)</label><input type="number" id="enqTempo" value="5" step="1" min="0"></div>
     </div>
     <button id="btnEnquadramento" class="sec">Ver enquadramento</button>
+    <button id="btnRosto" class="sec">Detectar rosto e enquadrar automaticamente</button>
+    <span class="resumo" id="rostoInfo"></span>
     <div class="cards" id="quadros" style="display:none"><div><p class="resumo">Original com a área que será usada</p><img class="quadro" id="quadroOrig"></div><div><p class="resumo">Resultado no formato escolhido</p><img class="quadro" id="quadroEnq" style="object-fit:contain"></div></div>
     <div class="linha">
       <div><label>Título (cartão de abertura; vazio = sem título)</label><input type="text" id="titulo"></div>
@@ -184,7 +186,14 @@
     </div>
     <div class="linha">
       <div><label>Imagem de apoio (enviar)</label><input type="file" id="imgUpload" accept=".png,.jpg,.jpeg,.webp"></div>
-      <div><label>ou escolher imagem já enviada</label><select id="ctImagem"><option value="">—</option></select></div>
+      <div><label>ou escolher imagem/ícone já enviado</label><select id="ctImagem"><option value="">—</option></select></div>
+      <div><label>Vídeo de apoio (enviar)</label><input type="file" id="vidUpload" accept="video/*"></div>
+      <div><label>ou escolher vídeo de apoio</label><select id="ctVideo"><option value="">—</option></select></div>
+    </div>
+    <div class="linha">
+      <div><label>Tela cheia: tipo de infográfico</label><select id="ctSubtipo"></select></div>
+      <div><label>Tela de barras: linha de referência (ex.: 80)</label><input type="number" id="ctLimite" step="1"></div>
+      <div><label>Vídeo de apoio: começar no segundo</label><input type="number" id="ctVideoIni" step="0.5" min="0"></div>
       <div><label>Aparece quando esta palavra é dita</label><input type="text" id="ctPalavra" placeholder="ex.: balancete"></div>
       <div><label>Duração (s, opcional)</label><input type="number" id="ctDuracao" step="0.5" min="0.3"></div>
     </div>
@@ -196,6 +205,7 @@
       <div><label>Animação</label><select id="ctAnim"><option value="">(padrão)</option><option value="fade">Aparece/some suave</option><option value="subir">Sobe e aparece</option><option value="nenhuma">Nenhuma</option></select></div>
       <div><label>Tamanho (1 = padrão; imagem: fração da largura)</label><input type="number" id="ctTamanho" step="0.1" min="0.2" max="2"></div>
     </div>
+    <p class="resumo">Dicas: <b>tela cheia</b> = texto é o título e os itens vão separados por vírgula (barras: "Condôminos: 80, Outros: 20"; documento: "Nota fiscal, Valores dos condôminos, …"); <b>emoji</b> = cole o emoji no texto (ex.: 💰); <b>palavra-chave</b> = texto + campo "aparece quando esta palavra é dita".</p>
     <button id="btnCartaoAdd">Adicionar elemento</button>
     </details>
     <div id="cartoesLista" style="margin-top:10px"></div>
@@ -208,7 +218,7 @@
         <div><label>fim (s)</label><input type="number" id="zFim" step="0.5" min="0"></div>
         <div><label>Tipo</label><select id="zTipo"><option value="suave">Suave (aproxima aos poucos)</option><option value="corte">Corte (aproximação imediata)</option></select></div>
         <div><label>Fator (vazio = do perfil)</label><input type="number" id="zFator" step="0.01" min="1.02" max="1.6" placeholder="1.12"></div>
-        <div style="align-self:end"><button id="btnZoomAdd" class="sec">Adicionar zoom</button></div>
+        <div style="align-self:end"><button id="btnZoomAdd" class="sec">Adicionar zoom</button><button id="btnZoomAuto" class="sec">Cortes rápidos automáticos</button></div>
       </div>
       <div id="zoomLista"></div>
     </details>
@@ -283,7 +293,10 @@ async function carregar() {
   $("estilo").value = p.perfil;
   $("destaques").value = (p.legendas.destaques || []).join(", ");
   $("ctTipo").innerHTML = Object.entries(p.tipos_cartao).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
-  $("ctImagem").innerHTML = "<option value=''>—</option>" + (p.imagens || []).map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("");
+  $("ctImagem").innerHTML = "<option value=''>—</option>" + (p.imagens || []).map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("") + (p.icones || []).map(i => `<option value="${esc(i)}">ícone: ${esc(i)}</option>`).join("");
+  $("ctVideo").innerHTML = "<option value=''>—</option>" + (p.videos_apoio || []).map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("");
+  $("ctSubtipo").innerHTML = Object.entries(p.subtipos_tela || {}).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  const ro = p.rosto || {}; $("rostoInfo").textContent = ro.centro_x != null ? `rosto detectado em ${ro.quadros_com_rosto}/${ro.quadros} quadros (x ${ro.centro_x}, y ${ro.centro_y}); o zoom segue o rosto` : (ro.quadros ? "nenhum rosto detectado" : "");
   renderCartoes(p); renderZooms(p); renderLinhaTempo(p);
   document.querySelectorAll(".fmt").forEach(c => c.checked = c.value === p.formato);
   const logos = await api("logos");
@@ -405,6 +418,20 @@ $("btnZoomAdd").onclick = async () => {
   try { const r = await api("zoom/adicionar", { fala: $("zFala").value || null, inicio: $("zIni").value || null, fim: $("zFim").value || null, tipo: $("zTipo").value, fator: $("zFator").value || null });
     msg("msgCartoes", `Zoom ${r.zoom.id} adicionado.`, "ok"); $("zFala").value = $("zIni").value = $("zFim").value = ""; carregar(); } catch (e) { msg("msgCartoes", e.message, "erro"); }
 };
+$("vidUpload").onchange = async () => {
+  const f = $("vidUpload").files[0]; if (!f) return;
+  try { msg("msgCartoes", "Enviando vídeo de apoio…", "info"); const r = await fetch("/api/video_apoio/upload?nome=" + encodeURIComponent(f.name), { method: "POST", body: f }); const j = await r.json(); if (j.erro) throw new Error(j.erro);
+    msg("msgCartoes", `Vídeo ${j.arquivo} enviado e selecionado.`, "ok"); await carregar(); $("ctVideo").value = j.arquivo; $("ctTipo").value = "video"; } catch (e) { msg("msgCartoes", e.message, "erro"); }
+};
+$("btnZoomAuto").onclick = async () => {
+  if (!confirm("Criar cortes rápidos automáticos? A cada fala o quadro alterna entre aberto e aproximado. Você pode remover os que não quiser.")) return;
+  try { const r = await api("zoom/automatico", {}); msg("msgCartoes", `${r.criados} aproximação(ões) criada(s).`, "ok"); carregar(); } catch (e) { msg("msgCartoes", e.message, "erro"); }
+};
+$("btnRosto").onclick = async () => {
+  try { await salvarConfig(); await api("rosto", { enquadrar: true }); msg("msgConfig", "Detectando rosto…", "info");
+    acompanhar("msgConfig", r => msg("msgConfig", r.centro_x != null ? `Rosto encontrado em ${r.com_rosto} de ${r.quadros} quadros. Enquadramento ajustado; clique em “Ver enquadramento” para conferir. O zoom passa a seguir o rosto.` : `Nenhum rosto encontrado em ${r.quadros} quadros.`, r.centro_x != null ? "ok" : "erro")); }
+  catch (e) { msg("msgConfig", e.message, "erro"); }
+};
 $("imgUpload").onchange = async () => {
   const f = $("imgUpload").files[0]; if (!f) return;
   try { const r = await fetch("/api/imagem/upload?nome=" + encodeURIComponent(f.name), { method: "POST", body: f }); const j = await r.json(); if (j.erro) throw new Error(j.erro);
@@ -417,10 +444,13 @@ $("btnCartaoAdd").onclick = async () => {
       fala: $("ctFala").value || null, inicio: $("ctIni").value || null, fim: $("ctFim").value || null, palavra: $("ctPalavra").value.trim() || null,
       duracao: $("ctDuracao").value || null, tamanho: $("ctTamanho").value || null, imagem: $("ctImagem").value || null, descricao: $("ctDescricao").value.trim() };
     if (tipo === "topico") corpo.numero = $("ctDestaque").value.trim(); else corpo.destaque = $("ctDestaque").value.trim();
-    if (tipo === "chips" || tipo === "resumo") corpo.itens = corpo.texto;
+    if (tipo === "chips" || tipo === "resumo" || tipo === "tela") corpo.itens = corpo.texto;
+    if (tipo === "tela") { corpo.subtipo = $("ctSubtipo").value; corpo.limite = $("ctLimite").value || null; corpo.texto = $("ctDestaque").value.trim() || corpo.texto.split(",")[0]; if (!$("ctDestaque").value.trim()) corpo.itens = corpo.itens.split(",").slice(1).join(","); }
+    if (tipo === "video") { corpo.video = $("ctVideo").value || null; corpo.video_inicio = $("ctVideoIni").value || null; }
+    if (tipo === "icone") corpo.imagem = $("ctImagem").value || corpo.texto;
     const r = await api("cartoes/adicionar", corpo);
     msg("msgCartoes", `Elemento ${r.cartao.id} (${tipo}) adicionado de ${fmtTempo(r.cartao.inicio)} a ${fmtTempo(r.cartao.fim)}. Clique em “ver” para conferir.`, "ok");
-    ["ctTexto", "ctDestaque", "ctDescricao", "ctFala", "ctIni", "ctFim", "ctPalavra", "ctDuracao", "ctTamanho"].forEach(id => $(id).value = "");
+    ["ctTexto", "ctDestaque", "ctDescricao", "ctFala", "ctIni", "ctFim", "ctPalavra", "ctDuracao", "ctTamanho", "ctLimite", "ctVideoIni"].forEach(id => $(id).value = "");
     carregar();
   } catch (e) { msg("msgCartoes", e.message, "erro"); }
 };

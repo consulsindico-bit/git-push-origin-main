@@ -891,6 +891,14 @@
     {
       "quando": "2026-11-03T20:33:26",
       "acao": "exportado demo-explicativo-institucional"
+    },
+    {
+      "quando": "2026-11-03T20:49:14",
+      "acao": "cortes rápidos automáticos: 3 aproximações"
+    },
+    {
+      "quando": "2026-11-03T20:54:17",
+      "acao": "exportado demo-explicativo-institucional"
     }
   ],
   "exportacoes": [
@@ -906,7 +914,7 @@
       "encerramento": true,
       "cartoes": 10,
       "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/demo-explicativo-institucional-9x16.srt",
-      "quando": "2026-11-03T20:33:26"
+      "quando": "2026-11-03T20:54:17"
     }
   ],
   "silencios_parametros": {
@@ -1101,6 +1109,33 @@
       "fator": null,
       "tipo": "corte",
       "ativo": true
+    },
+    {
+      "id": 3,
+      "inicio": 5.45,
+      "fim": 12.98,
+      "fator": null,
+      "tipo": "corte",
+      "ativo": true,
+      "automatico": true
+    },
+    {
+      "id": 4,
+      "inicio": 18.28,
+      "fim": 25.38,
+      "fator": null,
+      "tipo": "corte",
+      "ativo": true,
+      "automatico": true
+    },
+    {
+      "id": 5,
+      "inicio": 33.92,
+      "fim": 37.2,
+      "fator": null,
+      "tipo": "corte",
+      "ativo": true,
+      "automatico": true
     }
   ]
 }

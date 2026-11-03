@@ -269,3 +269,29 @@ def adicionar_zoom(dados: dict, inicio: float, fim: float, fator: float | None =
             "fator": float(fator) if fator else None, "tipo": tipo, "ativo": True}
     lista.append(item)
     return item
+
+
+def zooms_automaticos(dados: dict, fator: float | None = None, minimo: float = 1.5) -> list[dict]:
+    """Cortes rápidos: alterna quadro aberto e aproximado a cada fala (estilo das referências).
+    Falas mais curtas que `minimo` segundos são agrupadas com a seguinte."""
+    transcricao = dados.get("transcricao")
+    if not transcricao:
+        raise ErroEdicao("Transcreva primeiro para gerar os cortes automáticos.")
+    dados["zooms"] = [z for z in dados.get("zooms", []) if not z.get("automatico")]
+    aproximar = False
+    criados = []
+    ini_grupo = None
+    for seg in transcricao["segmentos"]:
+        if mapear_intervalo(dados, seg["inicio"], seg["fim"]) is None:
+            continue
+        if ini_grupo is None:
+            ini_grupo = float(seg["inicio"])
+        if float(seg["fim"]) - ini_grupo < minimo:
+            continue
+        if aproximar:
+            item = adicionar_zoom(dados, ini_grupo, float(seg["fim"]), fator, "corte")
+            item["automatico"] = True
+            criados.append(item)
+        aproximar = not aproximar
+        ini_grupo = None
+    return criados

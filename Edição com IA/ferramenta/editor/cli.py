@@ -330,6 +330,13 @@ def cmd_formato(args):
 
 def cmd_enquadramento(args):
     pasta, dados = _carregar(args)
+    if args.auto:
+        from . import rosto as mod_rosto
+        if not (dados.get("rosto") or {}).get("centro_x"):
+            raise ErroEdicao("Detecte o rosto primeiro: python -m editor rosto <projeto>")
+        dados["enquadramento"] = mod_rosto.enquadramento_sugerido(dados["rosto"], dados["origem"]["info"], args.formato or dados.get("formato", "16:9"))
+        mod_projeto.salvar(pasta, dados, acao="enquadramento automático pelo rosto")
+        imprimir(f"Enquadramento ajustado pelo rosto: {dados['enquadramento']}")
     r = render.quadro(pasta, dados, tempo=ler_tempo(args.tempo), formato=args.formato)
     imprimir(f"Quadro original com a área marcada: {r['original']}")
     imprimir(f"Resultado enquadrado ({r['formato']}): {r['enquadrado']}")
@@ -368,7 +375,8 @@ def cmd_cartoes(args):
                                      ler_tempo(args.fim) if args.fim else None, fala=args.fala, posicao=args.posicao,
                                      destaque=args.destaque or "", itens=itens, y=args.y, numero=args.numero,
                                      descricao=args.descricao or "", imagem=args.imagem, palavra_ancora=args.palavra,
-                                     duracao=args.duracao, animacao=args.animacao, tamanho=args.tamanho)
+                                     duracao=args.duracao, animacao=args.animacao, tamanho=args.tamanho,
+                                     subtipo=args.subtipo, limite=args.limite, video=args.video, video_inicio=args.video_inicio)
         mod_projeto.salvar(pasta, dados, acao=f"elemento {item['id']} ({item['tipo']}) adicionado")
         imprimir(f"Elemento [{item['id']}] {item['tipo']} de {formatar_tempo(item['inicio'])} a {formatar_tempo(item['fim'])}: "
                  f"{item['texto'] or item.get('imagem') or ', '.join(item.get('itens') or [])}")
@@ -443,8 +451,35 @@ def cmd_assinatura(args):
     imprimir(f"Assinatura: {a.get('nome')} {a.get('handle', '')} de {formatar_tempo(a.get('inicio', 0))} a {formatar_tempo(a.get('fim', 0))} — {'ativa' if a.get('ativo') else 'desativada'}")
 
 
+def cmd_rosto(args):
+    """Detecta o rosto (OpenCV, local) e guarda no projeto; com --enquadrar ajusta o recorte do formato atual."""
+    from . import rosto as mod_rosto
+    pasta, dados = _carregar(args)
+    origem = mod_projeto.caminho_origem(dados)
+    barra = barra_progresso("Rosto")
+    r = mod_rosto.detectar(origem, dados["origem"]["info"]["duracao"], passo=args.passo, ao_progredir=lambda f, m: barra(f))
+    dados["rosto"] = r
+    if r["centro_x"] is None:
+        mod_projeto.salvar(pasta, dados, acao="detecção de rosto: nenhum rosto")
+        imprimir(f"Nenhum rosto encontrado em {r['quadros']} quadros analisados. O zoom e o enquadramento continuam centrados.")
+        return
+    imprimir(f"Rosto encontrado em {r['quadros_com_rosto']} de {r['quadros']} quadros. Centro médio: x={r['centro_x']:.2f}, y={r['centro_y']:.2f} "
+             f"(largura do rosto {r['largura']*100:.0f}% do quadro).")
+    if args.enquadrar:
+        sug = mod_rosto.enquadramento_sugerido(r, dados["origem"]["info"], dados.get("formato", "16:9"))
+        dados["enquadramento"] = sug
+        imprimir(f"Enquadramento ajustado para {dados.get('formato')}: centro ({sug['centro_x']:.2f}, {sug['centro_y']:.2f}). "
+                 "Confira com: enquadramento <projeto> --tempo 5")
+    mod_projeto.salvar(pasta, dados, acao="rosto detectado" + (" e enquadramento ajustado" if args.enquadrar else ""))
+
+
 def cmd_zoom(args):
     pasta, dados = _carregar(args)
+    if args.automatico:
+        criados = mod_projeto.zooms_automaticos(dados, args.fator, minimo=args.minimo)
+        mod_projeto.salvar(pasta, dados, acao=f"cortes rápidos automáticos: {len(criados)} aproximações")
+        imprimir(f"{len(criados)} aproximação(ões) criada(s), alternando com o quadro aberto a cada fala. "
+                 "Remova as que não quiser com --remover ID.")
     if args.adicionar:
         ini, fim = (ler_tempo(args.inicio) if args.inicio else None), (ler_tempo(args.fim) if args.fim else None)
         if args.fala is not None:
@@ -625,6 +660,11 @@ def cmd_autoteste(args):
         imprimir(f"  [OK] faster-whisper {faster_whisper.__version__}, ctranslate2 {ctranslate2.__version__}, numpy {numpy.__version__}")
         import PIL  # noqa: F401
         imprimir(f"  [OK] Pillow {PIL.__version__} (cartões)")
+        try:
+            import cv2
+            imprimir(f"  [OK] OpenCV {cv2.__version__} (detecção de rosto)")
+        except ImportError:
+            imprimir("  [!] OpenCV não instalado: a detecção de rosto fica indisponível (o resto funciona)")
     except Exception as e:  # noqa: BLE001
         falhas.append(f"dependência Python ausente: {e}"); imprimir(f"  [X] dependência Python ausente: {e}")
     if falhas:
@@ -765,7 +805,8 @@ def construir_parser() -> argparse.ArgumentParser:
     s.add_argument("--centro-x", type=float, help="0 = esquerda, 0.5 = centro, 1 = direita"); s.add_argument("--centro-y", type=float); s.set_defaults(fn=cmd_formato)
 
     s = sub.add_parser("enquadramento", help="gera imagens para revisar o enquadramento")
-    s.add_argument("projeto"); s.add_argument("--tempo", default="5"); s.add_argument("--formato", choices=list(mod_projeto.FORMATOS)); s.set_defaults(fn=cmd_enquadramento)
+    s.add_argument("projeto"); s.add_argument("--tempo", default="5"); s.add_argument("--formato", choices=list(mod_projeto.FORMATOS))
+    s.add_argument("--auto", action="store_true", help="centra o recorte no rosto detectado"); s.set_defaults(fn=cmd_enquadramento)
 
     s = sub.add_parser("legendas", help="gera o SRT de prévia (com cortes aplicados) e liga/desliga legendas")
     s.add_argument("projeto"); s.add_argument("--ativar", action="store_true"); s.add_argument("--desativar", action="store_true"); s.add_argument("--mostrar", action="store_true")
@@ -786,12 +827,21 @@ def construir_parser() -> argparse.ArgumentParser:
     s.add_argument("--animacao", choices=list(mod_cartoes.ANIMACOES)); s.add_argument("--tamanho", type=float, help="escala (1 = padrão; imagem: fração da largura)")
     s.add_argument("--editar", type=int, metavar="ID"); s.add_argument("--ativar", type=int, metavar="ID"); s.add_argument("--desativar", type=int, metavar="ID")
     s.add_argument("--cor-fundo"); s.add_argument("--cor-texto")
+    s.add_argument("--subtipo", choices=list(mod_cartoes.SUBTIPOS_TELA), help="(tela) barra, documento, lista, imagem ou texto")
+    s.add_argument("--limite", type=float, help="(tela barra) linha de referência, ex.: 80")
+    s.add_argument("--video", help="(vídeo de apoio) arquivo em '2-Identidade visual e referências/videos-apoio' ou caminho")
+    s.add_argument("--video-inicio", type=float, help="(vídeo de apoio) começar a partir deste segundo do clipe")
     s.set_defaults(fn=cmd_cartoes)
 
     s = sub.add_parser("zoom", help="aproximações suaves ou cortes de zoom em trechos")
     s.add_argument("projeto"); s.add_argument("--adicionar", action="store_true"); s.add_argument("--inicio"); s.add_argument("--fim")
     s.add_argument("--fala", type=int); s.add_argument("--fator", type=float, help="ex.: 1.12"); s.add_argument("--tipo", choices=["suave", "corte"], default="suave")
-    s.add_argument("--remover", type=int, metavar="ID"); s.set_defaults(fn=cmd_zoom)
+    s.add_argument("--remover", type=int, metavar="ID"); s.add_argument("--automatico", action="store_true", help="cortes rápidos: alterna aproximação a cada fala")
+    s.add_argument("--minimo", type=float, default=1.5, help="duração mínima de cada trecho nos cortes automáticos"); s.set_defaults(fn=cmd_zoom)
+
+    s = sub.add_parser("rosto", help="detecta o rosto (local) para o zoom seguir a pessoa; --enquadrar ajusta o recorte")
+    s.add_argument("projeto"); s.add_argument("--enquadrar", action="store_true"); s.add_argument("--passo", type=float, default=1.0)
+    s.set_defaults(fn=cmd_rosto)
 
     s = sub.add_parser("destaques", help="palavras que ganham a cor de destaque nas legendas")
     s.add_argument("projeto"); s.add_argument("palavras", nargs="*", help="ex.: balancete parecer assembleia"); s.add_argument("--limpar", action="store_true")

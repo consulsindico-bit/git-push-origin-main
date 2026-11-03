@@ -109,7 +109,11 @@ def _filtro_zoom(dados: dict, perfil: dict, plano: dict) -> str | None:
             valor = f"(1+{fator - 1:.4f}*min(1\\,(it-{ini:.3f})/{e:.3f}))"
         expr = f"if(between(it\\,{ini:.3f}\\,{fim:.3f})\\,{valor}\\,{expr})"
     L, A = plano["largura"], plano["altura"]
-    return (f"zoompan=z='{expr}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={L}x{A}:fps={FPS_SAIDA}")
+    # Centro do zoom: o rosto (se detectado), senão o centro do quadro
+    from .rosto import posicao_no_recorte
+    pos = posicao_no_recorte(dados.get("rosto"), dados["origem"]["info"], plano["enquadramento"], L, A)
+    fx, fy = pos if pos else (0.5, 0.5)
+    return (f"zoompan=z='{expr}':x='(iw-iw/zoom)*{fx:.4f}':y='(ih-ih/zoom)*{fy:.4f}':d=1:s={L}x{A}:fps={FPS_SAIDA}")
 
 
 def _filtro_audio(plano: dict) -> str:
@@ -216,19 +220,34 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
     if plano["logo"]:
         entradas += ["-i", plano["logo"]]
         indice_logo = 1
-    # Cartões, marca d'água e assinatura (PNGs desenhados agora, na resolução de saída)
+    dur_conteudo = plano["duracao_conteudo"]
+    # Elementos visuais (PNGs, telas com apresentador em janela, vídeos de apoio) desenhados agora, na resolução de saída
     sobreposicoes = planejar_sobreposicoes(dados, perfil, plano["largura"], plano["altura"], trabalho)
-    indices_sobre = []
     n_entradas = 1 + (1 if indice_logo is not None else 0)
-    for sp in sobreposicoes:
-        animado = sp.get("animacao", "nenhuma") != "nenhuma" and sp["fim"] is not None
-        if animado:
-            dur = max(0.2, sp["fim"] - sp["inicio"])
-            entradas += ["-loop", "1", "-framerate", str(FPS_SAIDA), "-t", f"{dur:.3f}", "-i", sp["arquivo"]]
-        else:
-            entradas += ["-i", sp["arquivo"]]
-        indices_sobre.append(n_entradas)
+
+    def nova_entrada(args: list[str]) -> int:
+        nonlocal n_entradas
+        entradas.extend(args)
         n_entradas += 1
+        return n_entradas - 1
+
+    for sp in sobreposicoes:
+        tipo = sp.get("kind", "png")
+        animado = sp.get("animacao", "nenhuma") != "nenhuma" and sp["fim"] is not None
+        if tipo == "png":
+            if animado:
+                dur = max(0.2, sp["fim"] - sp["inicio"])
+                sp["idx"] = nova_entrada(["-loop", "1", "-framerate", str(FPS_SAIDA), "-t", f"{dur:.3f}", "-i", sp["arquivo"]])
+            else:
+                sp["idx"] = nova_entrada(["-i", sp["arquivo"]])
+        elif tipo == "tela":
+            dur = max(0.2, sp["fim"] - sp["inicio"])
+            sp["idx"] = nova_entrada(["-loop", "1", "-framerate", str(FPS_SAIDA), "-t", f"{dur:.3f}", "-i", sp["fundo"]])
+            sp["idx_mascara"] = nova_entrada(["-loop", "1", "-framerate", str(FPS_SAIDA), "-t", f"{dur_conteudo:.3f}", "-i", sp["mascara"]])
+        elif tipo == "video":
+            dur = max(0.2, sp["fim"] - sp["inicio"])
+            sp["idx"] = nova_entrada(["-ss", f"{sp.get('origem_inicio', 0):.3f}", "-t", f"{dur:.3f}", "-i", sp["arquivo"]])
+            sp["idx_mascara"] = nova_entrada(["-loop", "1", "-framerate", str(FPS_SAIDA), "-t", f"{dur:.3f}", "-i", sp["mascara"]])
 
     # --- Filtro principal: cortes + concat
     fc = []
@@ -243,20 +262,33 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
     else:
         fc.append("".join(rotulos) + f"concat=n={n_trechos}:v=1:a=1[vc][ac]")
 
-    # --- Vídeo: enquadramento, fps, legendas, logo
+    # --- Vídeo base: enquadramento, fps, zoom
     cadeia_v = [_filtro_enquadramento(info, plano, perfil), f"fps={FPS_SAIDA}"]
     zoom = _filtro_zoom(dados, perfil, plano)
     if zoom:
         cadeia_v.append(zoom)
     cadeia_v.append("format=yuv420p")
-    if arq_ass:
-        tem_fontes = PASTA_FONTES.exists() and any(f.suffix.lower() in (".ttf", ".otf") for f in PASTA_FONTES.iterdir())
-        fontsdir = f":fontsdir='{escapar_filtro(str(PASTA_FONTES))}'" if tem_fontes else ""
-        cadeia_v.append(f"ass='{escapar_filtro(arq_ass.name)}'{fontsdir}")
-    fc.append("[vc]" + ",".join(cadeia_v) + "[vp]")
+    fc.append("[vc]" + ",".join(cadeia_v) + "[vbase]")
+
+    # --- Telas com apresentador em janela: cópias do vídeo base recortadas e com cantos arredondados
+    telas = [sp for sp in sobreposicoes if sp.get("kind") == "tela"]
+    if telas:
+        fc.append(f"[vbase]split={len(telas) + 1}[vb0]" + "".join(f"[vbt{i}]" for i in range(len(telas))))
+        L, A = plano["largura"], plano["altura"]
+        for i, sp in enumerate(telas):
+            pip = sp["pip"]
+            lado = min(L, A)
+            cx = int((L - lado) / 2)
+            cy = int((A - lado) * float(pip.get("crop_y_frac", 0.3)))
+            fc.append(f"[vbt{i}]crop={lado}:{lado}:{cx}:{cy},scale={pip['w']}:{pip['h']}:flags=lanczos,format=rgba[vpipr{i}]")
+            fc.append(f"[vpipr{i}][{sp['idx_mascara']}:v]alphamerge[vpip{i}]")
+        base_v = "[vb0]"
+    else:
+        base_v = "[vbase]"
+
+    # --- Logo
     if indice_logo is not None:
         cfg_logo = perfil["logo"]
-        # proporcional à área do quadro, para ficar parecida em todos os formatos
         base = (plano["largura"] * plano["altura"]) ** 0.5
         largura_logo = int(base * float(dados.get("logo", {}).get("largura") or cfg_logo.get("largura", 0.14)))
         margem = int(plano["largura"] * float(cfg_logo.get("margem", 0.03)))
@@ -266,16 +298,21 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
         if posicao not in pos:
             raise ErroEdicao(f"Posição de logo '{posicao}' inválida. Use: {', '.join(pos)}")
         fc.append(f"[{indice_logo}:v]scale={largura_logo}:-1:flags=lanczos[logo]")
-        fc.append(f"[vp][logo]overlay={pos[posicao]}:format=auto[vmain]")
+        fc.append(f"{base_v}[logo]overlay={pos[posicao]}:format=auto[vmain]")
     else:
-        fc.append("[vp]null[vmain]")
+        fc.append(f"{base_v}null[vmain]")
+
+    # --- Sobreposições na ordem da lista
     atual_v = "[vmain]"
-    for n, (sp, idx) in enumerate(zip(sobreposicoes, indices_sobre)):
+    n_tela = 0
+    for n, sp in enumerate(sobreposicoes):
+        tipo = sp.get("kind", "png")
         anim = sp.get("animacao", "nenhuma")
-        if sp["fim"] is None or anim == "nenhuma":
+        idx = sp["idx"]
+        if tipo == "png" and (sp["fim"] is None or anim == "nenhuma"):
             ativo = f":enable='between(t,{sp['inicio']:.3f},{sp['fim']:.3f})'" if sp["fim"] is not None else ""
             fc.append(f"{atual_v}[{idx}:v]overlay=x={sp['x']}:y={sp['y']}:format=auto{ativo}[vs{n}]")
-        else:
+        elif tipo == "png":
             dur = max(0.2, sp["fim"] - sp["inicio"])
             t_anim = min(0.35, dur / 3)
             fc.append(f"[{idx}:v]format=rgba,fade=t=in:st=0:d={t_anim:.3f}:alpha=1,"
@@ -286,12 +323,38 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
             else:
                 y_expr = str(sp["y"])
             fc.append(f"{atual_v}[ov{n}]overlay=x={sp['x']}:y={y_expr}:format=auto:eof_action=pass:eval=frame[vs{n}]")
+        elif tipo == "tela":
+            dur = max(0.2, sp["fim"] - sp["inicio"])
+            t_anim = min(0.35, dur / 3) if anim != "nenhuma" else 0.0
+            cadeia = "format=rgba"
+            if t_anim:
+                cadeia += f",fade=t=in:st=0:d={t_anim:.3f}:alpha=1,fade=t=out:st={dur - t_anim:.3f}:d={t_anim:.3f}:alpha=1"
+            fc.append(f"[{idx}:v]{cadeia},setpts=PTS+{sp['inicio']:.3f}/TB[tf{n}]")
+            fc.append(f"{atual_v}[tf{n}]overlay=x=0:y=0:format=auto:eof_action=pass[vt{n}]")
+            pip = sp["pip"]
+            fc.append(f"[vt{n}][vpip{n_tela}]overlay=x={pip['x']}:y={pip['y']}:format=auto:"
+                      f"enable='between(t,{sp['inicio'] + t_anim:.3f},{sp['fim'] - t_anim:.3f})'[vs{n}]")
+            n_tela += 1
+        elif tipo == "video":
+            dur = max(0.2, sp["fim"] - sp["inicio"])
+            t_anim = min(0.35, dur / 3) if anim != "nenhuma" else 0.0
+            cadeia = f"scale={sp['w']}:{sp['h']}:flags=lanczos,fps={FPS_SAIDA},format=rgba,setpts=PTS-STARTPTS"
+            fc.append(f"[{idx}:v]{cadeia}[vcl{n}]")
+            fc.append(f"[vcl{n}][{sp['idx_mascara']}:v]alphamerge[vcm{n}]")
+            cadeia2 = ""
+            if t_anim:
+                cadeia2 = f"fade=t=in:st=0:d={t_anim:.3f}:alpha=1,fade=t=out:st={dur - t_anim:.3f}:d={t_anim:.3f}:alpha=1,"
+            fc.append(f"[vcm{n}]{cadeia2}setpts=PTS+{sp['inicio']:.3f}/TB[vcf{n}]")
+            fc.append(f"{atual_v}[vcf{n}]overlay=x={sp['x']}:y={sp['y']}:format=auto:eof_action=pass[vs{n}]")
         atual_v = f"[vs{n}]"
-    if atual_v != "[vmain]":
-        fc.append(f"{atual_v}null[vmain2]")
-        fc[-1] = fc[-1]  # mantém legível
+
+    # --- Legendas por cima de tudo (inclusive das telas), antes dos cartões de abertura/encerramento
+    if arq_ass:
+        tem_fontes = PASTA_FONTES.exists() and any(f.suffix.lower() in (".ttf", ".otf") for f in PASTA_FONTES.iterdir())
+        fontsdir = f":fontsdir='{escapar_filtro(str(PASTA_FONTES))}'" if tem_fontes else ""
+        fc.append(f"{atual_v}ass='{escapar_filtro(arq_ass.name)}'{fontsdir}[vmain2]")
     else:
-        fc.append("[vmain]null[vmain2]")
+        fc.append(f"{atual_v}null[vmain2]")
     fc.append(f"[ac]{_filtro_audio(plano)}[amain]")
 
     # --- Cartões
@@ -399,7 +462,27 @@ def quadro_cartao(pasta: Path, dados: dict, ident: int, formato: str | None = No
     t_edit = (novo[0] + min(0.5, (novo[1] - novo[0]) / 2)) if novo else None
     for sp in planejar_sobreposicoes(dados, perfil, plano["largura"], plano["altura"], trabalho):
         visivel = sp["fim"] is None or (t_edit is not None and sp["inicio"] <= t_edit <= sp["fim"])
-        if visivel:
+        if not visivel:
+            continue
+        tipo = sp.get("kind", "png")
+        if tipo == "tela":
+            fundo = Image.open(sp["fundo"]).convert("RGBA")
+            pip = sp["pip"]
+            lado = min(img.width, img.height)
+            cx, cy = int((img.width - lado) / 2), int((img.height - lado) * float(pip.get("crop_y_frac", 0.3)))
+            janela = img.crop((cx, cy, cx + lado, cy + lado)).resize((pip["w"], pip["h"]), Image.LANCZOS)
+            mascara = Image.open(sp["mascara"]).convert("L")
+            janela.putalpha(mascara)
+            img = Image.alpha_composite(img, fundo)
+            img.alpha_composite(janela, (int(pip["x"]), int(pip["y"])))
+        elif tipo == "video":
+            # marcador do vídeo de apoio: caixa cinza com o nome do arquivo
+            from PIL import ImageDraw
+            caixa = Image.new("RGBA", (sp["w"], sp["h"]), (90, 90, 90, 230))
+            d = ImageDraw.Draw(caixa)
+            d.text((12, 12), "vídeo de apoio: " + Path(sp["arquivo"]).name, fill=(255, 255, 255, 255))
+            img.alpha_composite(caixa, (int(sp["x"]), int(sp["y"])))
+        else:
             camada = Image.open(sp["arquivo"]).convert("RGBA")
             img.alpha_composite(camada, (int(sp["x"]), int(sp["y"])))
     saida = trabalho / f"quadro-cartao-{ident}.jpg"

@@ -689,7 +689,7 @@
     }
   ],
   "audio": {
-    "ganho_db": 0.0,
+    "ganho_db": 0,
     "melhorar_voz": true,
     "normalizar": true
   },
@@ -711,7 +711,7 @@
   },
   "logo": {
     "arquivo": null,
-    "posicao": null,
+    "posicao": "superior-esquerda",
     "largura": null,
     "ativo": true
   },
@@ -721,7 +721,9 @@
       "balancete",
       "dinheiro",
       "parecer"
-    ]
+    ],
+    "modo": null,
+    "posicao_percentual": null
   },
   "cartoes": [
     {
@@ -879,6 +881,128 @@
       "animacao": "fade",
       "tamanho": null,
       "ativo": true
+    },
+    {
+      "id": 9,
+      "tipo": "tela",
+      "texto": "Receitas do condomínio",
+      "inicio": 5.45,
+      "fim": 12.98,
+      "fala": 2,
+      "posicao": "centro",
+      "destaque": "",
+      "itens": [
+        "Condôminos: 80",
+        "Outras receitas: 20"
+      ],
+      "y": null,
+      "numero": null,
+      "descricao": "",
+      "imagem": null,
+      "palavra_ancora": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "ativo": true,
+      "subtipo": "barra",
+      "limite": 80,
+      "video": null,
+      "video_inicio": null
+    },
+    {
+      "id": 10,
+      "tipo": "tela",
+      "texto": "Nota fiscal",
+      "inicio": 12.98,
+      "fim": 18.28,
+      "fala": 3,
+      "posicao": "centro",
+      "destaque": "",
+      "itens": [
+        "Nota fiscal",
+        "Valores dos condôminos",
+        "Serão obrigatórios"
+      ],
+      "y": null,
+      "numero": null,
+      "descricao": "",
+      "imagem": null,
+      "palavra_ancora": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "ativo": true,
+      "subtipo": "documento",
+      "limite": null,
+      "video": null,
+      "video_inicio": null
+    },
+    {
+      "id": 11,
+      "tipo": "video",
+      "texto": "",
+      "inicio": 18.28,
+      "fim": 25.38,
+      "fala": 4,
+      "posicao": "centro",
+      "destaque": "",
+      "itens": null,
+      "y": null,
+      "numero": null,
+      "descricao": "",
+      "imagem": null,
+      "palavra_ancora": null,
+      "animacao": "fade",
+      "tamanho": 0.8,
+      "ativo": true,
+      "subtipo": null,
+      "limite": null,
+      "video": "clipe-de-teste.mp4",
+      "video_inicio": null
+    },
+    {
+      "id": 12,
+      "tipo": "emoji",
+      "texto": "💰",
+      "inicio": 26.18,
+      "fim": 28.18,
+      "fala": 5,
+      "posicao": "centro",
+      "destaque": "",
+      "itens": null,
+      "y": null,
+      "numero": null,
+      "descricao": "",
+      "imagem": null,
+      "palavra_ancora": "aprovam",
+      "animacao": "fade",
+      "tamanho": null,
+      "ativo": true,
+      "subtipo": null,
+      "limite": null,
+      "video": null,
+      "video_inicio": null
+    },
+    {
+      "id": 13,
+      "tipo": "icone",
+      "texto": "icone-teste",
+      "inicio": 33.92,
+      "fim": 37.2,
+      "fala": 6,
+      "posicao": "centro",
+      "destaque": "",
+      "itens": null,
+      "y": null,
+      "numero": null,
+      "descricao": "",
+      "imagem": "icone-teste.png",
+      "palavra_ancora": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "ativo": true,
+      "subtipo": null,
+      "limite": null,
+      "video": null,
+      "video_inicio": null
     }
   ],
   "zooms": [
@@ -925,6 +1049,18 @@
     {
       "quando": "2026-11-03T20:32:58",
       "acao": "exportado demo-insights-dinamicos"
+    },
+    {
+      "quando": "2026-11-03T20:45:05",
+      "acao": "teste de telas, vídeo, emoji e ícone"
+    },
+    {
+      "quando": "2026-11-03T20:53:46",
+      "acao": "exportado demo-insights-dinamicos"
+    },
+    {
+      "quando": "2026-11-03T20:55:03",
+      "acao": "configuração alterada na interface"
     }
   ],
   "exportacoes": [
@@ -938,9 +1074,9 @@
       "logo": false,
       "titulo": false,
       "encerramento": true,
-      "cartoes": 12,
+      "cartoes": 17,
       "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/demo-insights-dinamicos-9x16.srt",
-      "quando": "2026-11-03T20:32:58"
+      "quando": "2026-11-03T20:53:46"
     }
   ],
   "silencios_parametros": {

@@ -112,12 +112,30 @@ python -m editor sugerir aula            # mostra sugestões; --aplicar para apl
 
 Vídeos de demonstração em `4-Vídeos exportados`: `demo-explicativo-institucional-9x16.mp4` e `demo-insights-dinamicos-9x16.mp4` (feitos com o vídeo de teste e a logo de teste).
 
+### Novidades da versão 0.3
+
+- **Tela cheia com o apresentador em janela** (`tela`): fundo azul-marinho com infográfico e a pessoa numa janela quadrada de cantos arredondados e borda dourada. Subtipos: `barra` (gráfico de barras com linha de referência, itens "Condôminos: 80, Outros: 20"), `documento` (documento ilustrado: título e linhas), `lista` (lista numerada grande), `imagem` (imagem em destaque) e `texto` (frase grande). A janela segue o rosto quando ele foi detectado.
+- **Vídeos de apoio** (`video`): trecho curto sobreposto, sem áudio, com cantos arredondados; arquivos em `2-Identidade visual e referências/videos-apoio` (ou envio pela interface). `--video-inicio` escolhe de onde o clipe começa.
+- **Emojis** (`emoji`, ex.: 💰) e **ícones** (`icone`, PNGs em `2-Identidade visual e referências/icones`). Sessenta emojis já vêm na pasta `emojis` (Twemoji, licença CC-BY 4.0); outros são baixados automaticamente quando há internet.
+- **Zoom que segue o rosto**: `python -m editor rosto <projeto> --enquadrar` detecta o rosto localmente (OpenCV), centra o recorte 9:16/1:1 nele e faz o zoom aproximar a pessoa, não o centro do quadro. Na interface: botão "Detectar rosto e enquadrar automaticamente".
+- **Cortes rápidos automáticos**: `python -m editor zoom <projeto> --automatico` alterna quadro aberto e aproximado a cada fala (estilo das referências). Remova os que não quiser.
+
+Exemplos:
+
+```
+python -m editor cartoes aula --adicionar tela --subtipo barra --texto "Receitas do condomínio" --itens "Condôminos: 80, Outros: 20" --limite 80 --fala 11
+python -m editor cartoes aula --adicionar tela --subtipo documento --texto "Nota fiscal" --itens "Nota fiscal, Valores dos condôminos, Serão obrigatórios" --fala 12
+python -m editor cartoes aula --adicionar video --video captura-noticia.mp4 --fala 10 --tamanho 0.8
+python -m editor cartoes aula --adicionar emoji --texto "💰" --palavra dinheiro --duracao 2
+python -m editor rosto aula --enquadrar
+python -m editor zoom aula --automatico
+```
+
 ### Ainda não implementado
 
-- Apresentador em janela reduzida enquanto um infográfico ocupa a tela; infográficos (gráficos de barra, documentos ilustrados).
-- Vídeos de apoio (só imagens por enquanto); emojis e ícones como elementos próprios.
-- Animações além de aparecer/sumir e subir; zoom que acompanha o rosto (o zoom é centralizado no quadro).
-- Cortes rápidos automáticos entre frases; leitura automática do estilo de um vídeo de referência.
+- Leitura automática do estilo de um vídeo de referência (os estilos são configurados nos perfis; use `referencias.bat` para mandar quadros ao Claude e transformar o estilo em perfil).
+- Animações além de aparecer/sumir e subir (ex.: digitação, quicar); transições entre cenas.
+- Áudio dos vídeos de apoio (entram sem som); emojis animados.
 
 ## Perfis de estilo
 
@@ -138,5 +156,4 @@ Para criar outro perfil, copie um dos arquivos com novo nome e altere os valores
 
 - Download de redes sociais (yt-dlp) não faz parte desta versão.
 - A interpretação de pedidos na interface é por regras simples; pedidos que exigem julgamento (“mantenha a ideia principal”) são decididos na conversa com o Claude.
-- Não há reconhecimento de rosto para enquadramento automático: o centro do recorte é ajustado manualmente, com imagem de conferência.
 - Testado de ponta a ponta apenas em Linux (ambiente desta sessão). O `instalar.ps1` e os `.bat` foram escritos e revisados para Windows 11, mas ainda não foram executados em uma máquina Windows: o primeiro teste real será o seu.

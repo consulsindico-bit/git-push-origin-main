@@ -16,3 +16,9 @@ Edição com IA/4-Vídeos exportados/*
 Edição com IA/2-Identidade visual e referências/referencias/*
 !Edição com IA/2-Identidade visual e referências/referencias/*.jpg
 !Edição com IA/2-Identidade visual e referências/referencias/*.txt
+
+# Vídeos de apoio, imagens e ícones do usuário (ficam só no computador)
+Edição com IA/2-Identidade visual e referências/videos-apoio/*
+!Edição com IA/2-Identidade visual e referências/videos-apoio/clipe-de-teste.mp4
+Edição com IA/2-Identidade visual e referências/imagens/*
+!Edição com IA/2-Identidade visual e referências/imagens/.gitkeep

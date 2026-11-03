@@ -96,6 +96,11 @@ def _dados_projeto_para_tela(pasta: Path, dados: dict) -> dict:
     saida["perfil_dados"] = perfil
     saida["tipos_cartao"] = mod_cartoes.TIPOS
     saida["animacoes"] = mod_cartoes.ANIMACOES
+    saida["subtipos_tela"] = mod_cartoes.SUBTIPOS_TELA
+    for d in (mod_cartoes.PASTA_VIDEOS_APOIO, mod_cartoes.PASTA_ICONES):
+        d.mkdir(parents=True, exist_ok=True)
+    saida["videos_apoio"] = [p.name for p in sorted(mod_cartoes.PASTA_VIDEOS_APOIO.iterdir()) if p.suffix.lower() in EXTENSOES_VIDEO]
+    saida["icones"] = [p.name for p in sorted(mod_cartoes.PASTA_ICONES.iterdir()) if p.suffix.lower() in (".png", ".webp")]
     for c in saida.get("cartoes") or []:
         c["removido"] = mod_projeto.mapear_intervalo(dados, c["inicio"], c["fim"]) is None
     for z in saida.get("zooms") or []:
@@ -252,6 +257,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._logo_upload(q)
             if rota == "/api/imagem/upload":
                 return self._imagem_upload(q)
+            if rota == "/api/video_apoio/upload":
+                return self._video_apoio_upload(q)
             corpo = self._ler_json()
             fn = getattr(self, "rota_" + rota.replace("/api/", "").replace("/", "_"), None)
             if not fn:
@@ -313,6 +320,23 @@ class Handler(BaseHTTPRequestHandler):
         destino = mod_cartoes.PASTA_IMAGENS / nome
         with open(destino, "wb") as f:
             f.write(self.rfile.read(tamanho))
+        return self._json({"ok": True, "arquivo": nome})
+
+    def _video_apoio_upload(self, q):
+        nome = Path(q.get("nome", ["clipe.mp4"])[0]).name
+        if Path(nome).suffix.lower() not in EXTENSOES_VIDEO:
+            raise ErroEdicao("Envie um vídeo (mp4, mov, mkv, webm...).")
+        tamanho = int(self.headers.get("Content-Length") or 0)
+        mod_cartoes.PASTA_VIDEOS_APOIO.mkdir(parents=True, exist_ok=True)
+        destino = mod_cartoes.PASTA_VIDEOS_APOIO / nome
+        restante = tamanho
+        with open(destino, "wb") as f:
+            while restante > 0:
+                bloco = self.rfile.read(min(1024 * 1024, restante))
+                if not bloco:
+                    break
+                f.write(bloco)
+                restante -= len(bloco)
         return self._json({"ok": True, "arquivo": nome})
 
     # --- rotas JSON
@@ -438,14 +462,16 @@ class Handler(BaseHTTPRequestHandler):
                                      fala=fala, posicao=c.get("posicao") or None, destaque=c.get("destaque", ""), itens=itens,
                                      numero=c.get("numero") or None, descricao=c.get("descricao", ""), imagem=c.get("imagem") or None,
                                      palavra_ancora=(c.get("palavra") or "").strip() or None, duracao=num("duracao"),
-                                     animacao=c.get("animacao") or None, tamanho=num("tamanho"))
+                                     animacao=c.get("animacao") or None, tamanho=num("tamanho"),
+                                     subtipo=c.get("subtipo") or None, limite=num("limite"), video=c.get("video") or None,
+                                     video_inicio=num("video_inicio"))
         mod_projeto.salvar(pasta, dados, acao=f"elemento {item['id']} adicionado (interface)")
         return self._json({"ok": True, "cartao": item})
 
     def rota_cartoes_atualizar(self, c):
         pasta, dados = _projeto_atual()
-        campos = {k: c.get(k) for k in ("texto", "destaque", "posicao", "numero", "descricao", "animacao", "ativo", "cor_fundo", "cor_texto")}
-        for k in ("inicio", "fim", "y", "tamanho"):
+        campos = {k: c.get(k) for k in ("texto", "destaque", "posicao", "numero", "descricao", "animacao", "ativo", "cor_fundo", "cor_texto", "subtipo", "video", "imagem")}
+        for k in ("inicio", "fim", "y", "tamanho", "limite", "video_inicio"):
             if c.get(k) not in (None, ""):
                 campos[k] = float(c[k])
         if c.get("itens"):
@@ -467,6 +493,30 @@ class Handler(BaseHTTPRequestHandler):
         item = mod_projeto.adicionar_zoom(dados, float(ini), float(fim), float(c["fator"]) if c.get("fator") else None, c.get("tipo") or "suave")
         mod_projeto.salvar(pasta, dados, acao=f"zoom {item['id']} adicionado (interface)")
         return self._json({"ok": True, "zoom": item})
+
+    def rota_zoom_automatico(self, c):
+        pasta, dados = _projeto_atual()
+        criados = mod_projeto.zooms_automaticos(dados, float(c["fator"]) if c.get("fator") else None, minimo=float(c.get("minimo") or 1.5))
+        mod_projeto.salvar(pasta, dados, acao=f"cortes rápidos automáticos (interface): {len(criados)}")
+        return self._json({"ok": True, "criados": len(criados)})
+
+    def rota_rosto(self, c):
+        """Detecta o rosto em segundo plano; com 'enquadrar' ajusta o recorte do formato atual."""
+        from . import rosto as mod_rosto
+        pasta, dados = _projeto_atual()
+        enquadrar = bool(c.get("enquadrar"))
+
+        def trabalho():
+            origem = mod_projeto.caminho_origem(dados)
+            r = mod_rosto.detectar(origem, dados["origem"]["info"]["duracao"], ao_progredir=_progresso)
+            dados["rosto"] = r
+            if enquadrar and r["centro_x"] is not None:
+                dados["enquadramento"] = mod_rosto.enquadramento_sugerido(r, dados["origem"]["info"], dados.get("formato", "16:9"))
+            mod_projeto.salvar(pasta, dados, acao="rosto detectado (interface)")
+            return {"quadros": r["quadros"], "com_rosto": r["quadros_com_rosto"], "centro_x": r["centro_x"], "centro_y": r["centro_y"],
+                    "enquadramento": dados.get("enquadramento")}
+        _iniciar_tarefa("Detecção de rosto", trabalho)
+        return self._json({"ok": True})
 
     def rota_zoom_remover(self, c):
         pasta, dados = _projeto_atual()

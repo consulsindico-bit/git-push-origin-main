@@ -1,0 +1,2 @@
+Imagens de emoji: Twemoji (Twitter, Inc. e colaboradores), licença CC-BY 4.0 — https://github.com/twitter/twemoji
+Arquivos nomeados pelo código Unicode (ex.: 1f4b0.png = 💰). Para outros emojis, a ferramenta baixa de cdn.jsdelivr.net quando há internet.
