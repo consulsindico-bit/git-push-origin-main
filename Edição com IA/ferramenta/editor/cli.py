@@ -6,6 +6,7 @@ import json
 import sys
 from pathlib import Path
 
+from . import cartoes as mod_cartoes
 from . import descrever, estilos, legendas as mod_legendas, projeto as mod_projeto, render, silencios as mod_silencios
 from . import transcricao as mod_transcricao, verificar as mod_verificar
 from .util import (PASTA_BRUTO, PASTA_EXPORTADOS, PASTA_LOGOS, PASTA_PERFIS, PASTA_PROJETOS, RAIZ, EXTENSOES_VIDEO, ErroEdicao, escapar_filtro,
@@ -322,10 +323,14 @@ def cmd_legendas(args):
         cfg["ativas"] = True
     if args.desativar:
         cfg["ativas"] = False
+    if args.modo:
+        cfg["modo"] = args.modo
+    if args.posicao_percentual is not None:
+        cfg["posicao_percentual"] = float(args.posicao_percentual)
     mod_projeto.salvar(pasta, dados)
     if not dados.get("transcricao"):
         raise ErroEdicao("Transcreva primeiro para gerar legendas.")
-    perfil = estilos.carregar_perfil(dados.get("perfil", "pessoal"))
+    perfil = estilos.perfil_do_projeto(dados)
     lista = mod_legendas.construir_legendas(dados, perfil)
     saida = pasta / "legendas-previa.srt"
     mod_legendas.escrever_srt(lista, saida)
@@ -334,6 +339,67 @@ def cmd_legendas(args):
     if args.mostrar:
         for n, l in enumerate(lista, 1):
             imprimir(f"  {n}. {formatar_tempo(l['inicio'])} --> {formatar_tempo(l['fim'])}  {l['texto'].replace(chr(10), ' / ')}")
+
+
+def cmd_cartoes(args):
+    pasta, dados = _carregar(args)
+    if args.adicionar:
+        itens = [i.strip() for i in args.itens.split(",")] if args.itens else None
+        item = mod_cartoes.adicionar(dados, args.adicionar, args.texto or "", ler_tempo(args.inicio) if args.inicio else None,
+                                     ler_tempo(args.fim) if args.fim else None, fala=args.fala, posicao=args.posicao,
+                                     destaque=args.destaque or "", itens=itens, y=args.y)
+        mod_projeto.salvar(pasta, dados, acao=f"cartão {item['id']} ({item['tipo']}) adicionado")
+        imprimir(f"Cartão [{item['id']}] {item['tipo']} de {formatar_tempo(item['inicio'])} a {formatar_tempo(item['fim'])}: {item['texto']}")
+    if args.remover is not None:
+        if not mod_cartoes.remover(dados, args.remover):
+            raise ErroEdicao(f"Cartão [{args.remover}] não existe.")
+        mod_projeto.salvar(pasta, dados, acao=f"cartão {args.remover} removido")
+        imprimir(f"Cartão [{args.remover}] removido.")
+    if args.previa is not None:
+        r = render.quadro_cartao(pasta, dados, args.previa)
+        imprimir(f"Prévia do cartão [{args.previa}] em: {r['arquivo']}")
+    lista = dados.get("cartoes") or []
+    if not lista:
+        imprimir("Nenhum cartão. Tipos: " + ", ".join(f"{k} ({v})" for k, v in mod_cartoes.TIPOS.items()))
+    for c in lista:
+        novo = mod_projeto.mapear_intervalo(dados, c["inicio"], c["fim"])
+        situacao = "" if novo else " (caiu em trecho removido)"
+        imprimir(f"  [{c['id']}] {c['tipo']:7s} {formatar_tempo(c['inicio'], False)}-{formatar_tempo(c['fim'], False)} {c['posicao']}: "
+                 f"{c['texto'] or ', '.join(c.get('itens') or [])}{(' | destaque: ' + c['destaque']) if c.get('destaque') else ''}{situacao}")
+
+
+def cmd_marca_dagua(args):
+    pasta, dados = _carregar(args)
+    md = dados.setdefault("marca_dagua", {})
+    if args.texto is not None:
+        md["texto"] = args.texto
+        md["ativo"] = bool(args.texto)
+    if args.posicao:
+        md["posicao"] = args.posicao
+    if args.desativar:
+        md["ativo"] = False
+    mod_projeto.salvar(pasta, dados, acao=f"marca d'água: {md}")
+    imprimir(f"Marca d'água: {md.get('texto') or '(do perfil)'} — {'ativa' if md.get('ativo') else 'desativada'}")
+
+
+def cmd_assinatura(args):
+    pasta, dados = _carregar(args)
+    a = dados.setdefault("assinatura", {})
+    if args.nome is not None:
+        a["nome"] = args.nome
+        a["ativo"] = bool(args.nome)
+    if args.handle is not None:
+        a["handle"] = args.handle
+    if args.inicio:
+        a["inicio"] = ler_tempo(args.inicio)
+    if args.fim:
+        a["fim"] = ler_tempo(args.fim)
+    if args.desativar:
+        a["ativo"] = False
+    if a.get("ativo") and not (a.get("fim", 0) > a.get("inicio", 0)):
+        raise ErroEdicao("Informe --inicio e --fim da faixa de assinatura.")
+    mod_projeto.salvar(pasta, dados, acao=f"assinatura: {a}")
+    imprimir(f"Assinatura: {a.get('nome')} {a.get('handle', '')} de {formatar_tempo(a.get('inicio', 0))} a {formatar_tempo(a.get('fim', 0))} — {'ativa' if a.get('ativo') else 'desativada'}")
 
 
 def cmd_perfil(args):
@@ -441,6 +507,8 @@ def cmd_autoteste(args):
     try:
         import faster_whisper, ctranslate2, numpy  # noqa: F401
         imprimir(f"  [OK] faster-whisper {faster_whisper.__version__}, ctranslate2 {ctranslate2.__version__}, numpy {numpy.__version__}")
+        import PIL  # noqa: F401
+        imprimir(f"  [OK] Pillow {PIL.__version__} (cartões)")
     except Exception as e:  # noqa: BLE001
         falhas.append(f"dependência Python ausente: {e}"); imprimir(f"  [X] dependência Python ausente: {e}")
     if falhas:
@@ -583,7 +651,25 @@ def construir_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("legendas", help="gera o SRT de prévia (com cortes aplicados) e liga/desliga legendas")
     s.add_argument("projeto"); s.add_argument("--ativar", action="store_true"); s.add_argument("--desativar", action="store_true"); s.add_argument("--mostrar", action="store_true")
+    s.add_argument("--modo", choices=["frases", "curtas"], help="frases (2 linhas) ou curtas (1 a 3 palavras no ritmo da fala)")
+    s.add_argument("--posicao-percentual", type=float, help="ex.: 0.62 = base da legenda a 62%% da altura")
     s.set_defaults(fn=cmd_legendas)
+
+    s = sub.add_parser("cartoes", help="cartões na tela: título, check, alerta, chips, texto")
+    s.add_argument("projeto"); s.add_argument("--adicionar", choices=list(mod_cartoes.TIPOS), metavar="TIPO")
+    s.add_argument("--texto"); s.add_argument("--destaque", help="(título) última linha em dourado"); s.add_argument("--itens", help="(chips) separados por vírgula")
+    s.add_argument("--inicio"); s.add_argument("--fim"); s.add_argument("--fala", type=int, help="usa o tempo desta fala da transcrição")
+    s.add_argument("--posicao", choices=list(mod_cartoes.POSICOES)); s.add_argument("--y", type=float, help="posição manual, fração da altura")
+    s.add_argument("--remover", type=int, metavar="ID"); s.add_argument("--previa", type=int, metavar="ID", help="gera imagem de conferência do cartão")
+    s.set_defaults(fn=cmd_cartoes)
+
+    s = sub.add_parser("marca-dagua", help="texto pequeno no canto (ex.: @seuperfil)")
+    s.add_argument("projeto"); s.add_argument("--texto"); s.add_argument("--posicao", choices=["superior-direita", "superior-esquerda", "inferior-direita", "inferior-esquerda"])
+    s.add_argument("--desativar", action="store_true"); s.set_defaults(fn=cmd_marca_dagua)
+
+    s = sub.add_parser("assinatura", help="faixa com nome e @ num trecho do vídeo")
+    s.add_argument("projeto"); s.add_argument("--nome"); s.add_argument("--handle"); s.add_argument("--inicio"); s.add_argument("--fim")
+    s.add_argument("--desativar", action="store_true"); s.set_defaults(fn=cmd_assinatura)
 
     s = sub.add_parser("perfil", help="define o perfil de estilo do projeto"); s.add_argument("projeto"); s.add_argument("perfil"); s.set_defaults(fn=cmd_perfil)
     s = sub.add_parser("perfis", help="lista os perfis de estilo"); s.set_defaults(fn=cmd_perfis)

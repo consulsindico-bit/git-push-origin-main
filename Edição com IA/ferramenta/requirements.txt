@@ -8,3 +8,4 @@ huggingface-hub>=0.34,<1.0
 numpy==2.5.4
 tqdm==4.70.1
 av==19.0.2
+pillow==13.0.0

@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .legendas import construir_legendas
-from .estilos import carregar_perfil
+from .estilos import perfil_do_projeto
 from .projeto import caminho_origem, duracao_editada
 from .render import verificar_saida
 from .util import sha256_arquivo
@@ -50,7 +50,7 @@ def verificar_projeto(pasta: Path, dados: dict) -> dict:
 
     # 3) Legendas dentro da duração editada e sem sobreposição
     if dados.get("transcricao"):
-        perfil = carregar_perfil(dados.get("perfil", "pessoal"))
+        perfil = perfil_do_projeto(dados)
         legendas = construir_legendas(dados, perfil)
         dur = duracao_editada(dados)
         fora = [l for l in legendas if l["fim"] > dur + 0.05 or l["inicio"] < -0.01]

@@ -68,6 +68,30 @@ python -m editor interface
 
 Coloque exemplos de edição que você gosta em `2-Identidade visual e referências/referencias/`. Clique em `ferramenta/referencias.bat` (ou rode `python -m editor referencias`): para cada vídeo ele gera `nome-quadros.jpg` (12 momentos com o tempo) e um `referencias-resumo.txt`. Envie essas imagens na conversa com o Claude para transformar o estilo em um perfil.
 
+## Cartões na tela, legendas curtas, marca d'água e assinatura
+
+Inspirado nos vídeos de referência: legendas de 1 a 3 palavras no ritmo da fala, posicionadas abaixo do rosto, e cartões brancos com detalhes em dourado.
+
+- **Perfil `consul-sindico-reels`**: vertical, legendas curtas em itálico a 62% da altura, cartões navy/dourado, marca d'água `@consulsindico`.
+- **Cartões** (seção 5b da interface ou `python -m editor cartoes`): `titulo` (linhas em caixas no topo, com uma linha de destaque em dourado), `check` (✓), `alerta` (ⓘ), `chips` (palavras-chave em pílulas que aparecem em sequência) e `texto`. Cada cartão tem início e fim no tempo do vídeo original, ou é ancorado numa fala da transcrição (`--fala 5`). O botão "ver" gera uma imagem de conferência.
+- **Marca d'água**: texto pequeno no canto (ex.: `@seuperfil`). Se a logo ocupar o mesmo canto, ela vai para o canto oposto.
+- **Assinatura**: faixa com nome e @ num trecho do vídeo (ex.: nos últimos 4 segundos).
+- **Estilo das legendas por projeto**: na seção 5 dá para escolher "curtas" ou "frases" e a altura em %, sem alterar o perfil.
+
+Exemplos no terminal:
+
+```
+python -m editor perfil aula consul-sindico-reels
+python -m editor cartoes aula --adicionar titulo --texto "Quais condomínios emitem nota fiscal" --destaque "a partir de dezembro" --inicio 0 --fim 6
+python -m editor cartoes aula --adicionar check --texto "Emite nota fiscal" --fala 5
+python -m editor cartoes aula --adicionar chips --itens "Receitas, Despesas, Parecer" --inicio 18 --fim 25
+python -m editor cartoes aula --previa 1
+python -m editor marca-dagua aula --texto "@consulsindico"
+python -m editor assinatura aula --nome "Consul Síndico" --handle "@consulsindico" --inicio 1:20 --fim 1:28
+```
+
+Ainda não existe: cartões de tela cheia com gráfico ou documento e o apresentador em janela pequena (segunda etapa).
+
 ## Perfis de estilo
 
 Ficam em `2-Identidade visual e referências/perfis/*.json` e podem ser editados em qualquer editor de texto: fonte, cores, posição e tamanho das legendas, logo, cartão de título e encerramento, cor de fundo do modo “caber”.
@@ -87,5 +111,6 @@ Para criar outro perfil, copie um dos arquivos com novo nome e altere os valores
 
 - Download de redes sociais (yt-dlp) não faz parte desta versão.
 - A interpretação de pedidos na interface é por regras simples; pedidos que exigem julgamento (“mantenha a ideia principal”) são decididos na conversa com o Claude.
+- Cartões de tela cheia com gráfico/documento e apresentador em janela pequena ainda não existem.
 - Não há reconhecimento de rosto para enquadramento automático: o centro do recorte é ajustado manualmente, com imagem de conferência.
 - Testado de ponta a ponta apenas em Linux (ambiente desta sessão). O `instalar.ps1` e os `.bat` foram escritos e revisados para Windows 11, mas ainda não foram executados em uma máquina Windows: o primeiro teste real será o seu.

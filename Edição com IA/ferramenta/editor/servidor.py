@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import __version__
+from . import cartoes as mod_cartoes
 from . import descrever, estilos, legendas as mod_legendas, projeto as mod_projeto, render, silencios as mod_silencios
 from . import transcricao as mod_transcricao, verificar as mod_verificar
 from .util import (PASTA_BRUTO, PASTA_EXPORTADOS, PASTA_INTERFACE, PASTA_LOGOS, RAIZ, EXTENSOES_VIDEO, ErroEdicao,
@@ -85,7 +86,7 @@ def _projeto_atual() -> tuple[Path, dict]:
 
 
 def _dados_projeto_para_tela(pasta: Path, dados: dict) -> dict:
-    perfil = estilos.carregar_perfil(dados.get("perfil", "pessoal"))
+    perfil = estilos.perfil_do_projeto(dados)
     saida = dict(dados)
     saida["id"] = pasta.name
     saida["pasta"] = str(pasta)
@@ -93,6 +94,9 @@ def _dados_projeto_para_tela(pasta: Path, dados: dict) -> dict:
     saida["trechos_mantidos"] = mod_projeto.trechos_mantidos(dados)
     saida["logo_em_uso"] = str(estilos.caminho_logo(perfil, dados) or "")
     saida["perfil_dados"] = perfil
+    saida["tipos_cartao"] = mod_cartoes.TIPOS
+    for c in saida.get("cartoes") or []:
+        c["removido"] = mod_projeto.mapear_intervalo(dados, c["inicio"], c["fim"]) is None
     if dados.get("transcricao"):
         for seg in saida["transcricao"]["segmentos"]:
             seg["texto_marcado"] = mod_transcricao.texto_com_marcas(seg)
@@ -399,13 +403,34 @@ class Handler(BaseHTTPRequestHandler):
         if "formato" in c:
             mod_projeto.dimensoes_formato(c["formato"])
             dados["formato"] = c["formato"]
-        for chave in ("enquadramento", "titulo", "encerramento", "logo", "audio", "legendas"):
+        for chave in ("enquadramento", "titulo", "encerramento", "logo", "audio", "legendas", "marca_dagua", "assinatura"):
             if chave in c and isinstance(c[chave], dict):
                 dados.setdefault(chave, {}).update(c[chave])
         if "duracao_alvo" in c:
             dados["duracao_alvo"] = float(c["duracao_alvo"]) if c["duracao_alvo"] else None
         mod_projeto.salvar(pasta, dados, acao="configuração alterada na interface")
         return self._json({"ok": True})
+
+    def rota_cartoes_adicionar(self, c):
+        pasta, dados = _projeto_atual()
+        itens = [i.strip() for i in (c.get("itens") or "").split(",") if i.strip()] or None
+        fala = int(c["fala"]) if c.get("fala") not in (None, "") else None
+        item = mod_cartoes.adicionar(dados, c.get("tipo", "texto"), c.get("texto", ""),
+                                     float(c["inicio"]) if c.get("inicio") not in (None, "") else None,
+                                     float(c["fim"]) if c.get("fim") not in (None, "") else None,
+                                     fala=fala, posicao=c.get("posicao") or None, destaque=c.get("destaque", ""), itens=itens)
+        mod_projeto.salvar(pasta, dados, acao=f"cartão {item['id']} adicionado (interface)")
+        return self._json({"ok": True, "cartao": item})
+
+    def rota_cartoes_remover(self, c):
+        pasta, dados = _projeto_atual()
+        mod_cartoes.remover(dados, int(c["id"]))
+        mod_projeto.salvar(pasta, dados, acao=f"cartão {c['id']} removido (interface)")
+        return self._json({"ok": True})
+
+    def rota_cartoes_previa(self, c):
+        pasta, dados = _projeto_atual()
+        return self._json(render.quadro_cartao(pasta, dados, int(c["id"]), formato=c.get("formato") or None))
 
     def rota_descrever(self, c):
         pasta, dados = _projeto_atual()

@@ -146,12 +146,44 @@
       <div><label><input type="checkbox" id="logoAtivo"> Mostrar logo</label></div>
     </div>
     <div class="linha">
+      <div><label>Estilo das legendas</label><select id="legModo"><option value="">(do perfil)</option><option value="frases">Frases em até 2 linhas</option><option value="curtas">Curtas: 1 a 3 palavras no ritmo da fala</option></select></div>
+      <div><label>Altura das legendas (% de cima para baixo; vazio = do perfil)</label><input type="number" id="legPos" min="10" max="95" step="1" placeholder="ex.: 62"></div>
+      <div><label>Marca d'água (ex.: @seuperfil; vazio = do perfil)</label><input type="text" id="mdTexto"></div>
+      <div><label>Posição da marca d'água</label><select id="mdPos"><option value="">(do perfil)</option><option value="superior-direita">Superior direita</option><option value="superior-esquerda">Superior esquerda</option><option value="inferior-direita">Inferior direita</option><option value="inferior-esquerda">Inferior esquerda</option></select></div>
+    </div>
+    <div class="linha">
+      <div><label>Faixa de assinatura: nome</label><input type="text" id="assNome" placeholder="ex.: Consul Síndico"></div>
+      <div><label>@ (handle)</label><input type="text" id="assHandle" placeholder="ex.: @consulsindico"></div>
+      <div><label>Aparece de (s)</label><input type="number" id="assIni" step="0.5" min="0"></div>
+      <div><label>até (s)</label><input type="number" id="assFim" step="0.5" min="0"></div>
+      <div><label><input type="checkbox" id="assAtivo"> Mostrar assinatura</label></div>
+    </div>
+    <div class="linha">
       <div><label>Volume da voz (dB, ex.: 3 ou -2)</label><input type="number" id="ganho" step="0.5"></div>
       <div><label><input type="checkbox" id="melhorarVoz"> Melhorar voz (graves cortados + compressão)</label></div>
       <div><label><input type="checkbox" id="normalizar"> Normalizar volume (padrão de redes sociais)</label></div>
     </div>
     <button id="btnSalvarConfig">Salvar configurações</button>
     <div id="msgConfig"></div>
+  </section>
+
+  <section>
+    <h2>5b. Cartões na tela <small>título no topo, confirmação ✓, alerta ⓘ, palavras-chave em pílulas ou caixa de texto; por tempo ou ancorados numa fala</small></h2>
+    <div class="linha">
+      <div><label>Tipo</label><select id="ctTipo"><option value="titulo">Título no topo</option><option value="check">Confirmação ✓</option><option value="alerta">Alerta ⓘ</option><option value="chips">Palavras-chave (pílulas)</option><option value="texto">Caixa de texto</option></select></div>
+      <div style="flex:2 1 300px"><label>Texto (para pílulas, separe por vírgula)</label><input type="text" id="ctTexto"></div>
+      <div><label>Destaque em dourado (só título; opcional)</label><input type="text" id="ctDestaque" placeholder="ex.: a partir de dezembro"></div>
+    </div>
+    <div class="linha">
+      <div><label>Fala da transcrição (nº; usa o tempo dela)</label><input type="number" id="ctFala" min="1" step="1"></div>
+      <div><label>ou início (s)</label><input type="number" id="ctIni" step="0.5" min="0"></div>
+      <div><label>fim (s)</label><input type="number" id="ctFim" step="0.5" min="0"></div>
+      <div><label>Posição</label><select id="ctPos"><option value="">(padrão do tipo)</option><option value="superior">Topo</option><option value="centro">Centro</option><option value="inferior">Abaixo do rosto</option></select></div>
+    </div>
+    <button id="btnCartaoAdd">Adicionar cartão</button>
+    <div id="cartoesLista"></div>
+    <div id="msgCartoes"></div>
+    <div id="cartaoPrevia" style="display:none;margin-top:8px"><p class="resumo" id="cartaoPreviaTxt"></p><img class="quadro" id="cartaoPreviaImg" style="object-fit:contain;max-height:520px"></div>
   </section>
 
   <section>
@@ -213,6 +245,10 @@ async function carregar() {
   $("logoPos").value = p.logo.posicao || p.perfil_dados.logo.posicao; $("logoAtivo").checked = p.logo.ativo !== false;
   $("ganho").value = p.audio.ganho_db ?? 0; $("melhorarVoz").checked = p.audio.melhorar_voz !== false; $("normalizar").checked = p.audio.normalizar !== false;
   $("legendasAtivas").checked = p.legendas.ativas !== false;
+  $("legModo").value = p.legendas.modo || ""; $("legPos").value = p.legendas.posicao_percentual != null ? Math.round(p.legendas.posicao_percentual * 100) : "";
+  const md = p.marca_dagua || {}; $("mdTexto").value = md.texto || ""; $("mdPos").value = md.posicao || "";
+  const as = p.assinatura || {}; $("assNome").value = as.nome || ""; $("assHandle").value = as.handle || ""; $("assIni").value = as.inicio ?? ""; $("assFim").value = as.fim ?? ""; $("assAtivo").checked = !!as.ativo;
+  renderCartoes(p);
   document.querySelectorAll(".fmt").forEach(c => c.checked = c.value === p.formato);
   const logos = await api("logos");
   $("logoArquivo").innerHTML = "<option value=''>(usar a do perfil: " + esc(p.perfil_dados.logo.arquivo || "nenhuma") + ")</option>" + logos.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
@@ -268,6 +304,33 @@ function renderCortes(p) {
   el.querySelectorAll(".desfazerCorte").forEach(b => b.onclick = async () => { try { await api("cortes/remover", { ids: [+b.dataset.id] }); carregar(); } catch (e) { msg("msgCortes", e.message, "erro"); } });
   $("btnLimparCortes").onclick = async () => { if (!confirm("Apagar todas as remoções deste projeto?")) return; try { await api("cortes/remover", { todos: true }); carregar(); } catch (e) { msg("msgCortes", e.message, "erro"); } };
 }
+
+function renderCartoes(p) {
+  const el = $("cartoesLista");
+  const lista = p.cartoes || [];
+  if (!lista.length) { el.innerHTML = "<p class='resumo'>Nenhum cartão ainda.</p>"; return; }
+  el.innerHTML = `<table><thead><tr><th>#</th><th>Tipo</th><th>Quando</th><th>Texto</th><th>Posição</th><th></th></tr></thead><tbody>` +
+    lista.map(c => `<tr class="${c.removido ? "removida" : ""}"><td>${c.id}</td><td>${esc(p.tipos_cartao[c.tipo] || c.tipo)}</td><td>${fmtTempo(c.inicio)}–${fmtTempo(c.fim)}${c.fala ? ` (fala ${c.fala})` : ""}${c.removido ? " <span class='tag aviso'>trecho removido</span>" : ""}</td><td>${esc(c.texto || (c.itens || []).join(", "))}${c.destaque ? ` <span class="tag">${esc(c.destaque)}</span>` : ""}</td><td>${esc(c.posicao)}</td><td><button class="sec ctPrevia" data-id="${c.id}">ver</button><button class="perigo ctRemover" data-id="${c.id}">remover</button></td></tr>`).join("") + "</tbody></table>";
+  el.querySelectorAll(".ctRemover").forEach(b => b.onclick = async () => { try { await api("cartoes/remover", { id: +b.dataset.id }); carregar(); } catch (e) { msg("msgCartoes", e.message, "erro"); } });
+  el.querySelectorAll(".ctPrevia").forEach(b => b.onclick = async () => {
+    try { await salvarConfig(); const r = await api("cartoes/previa", { id: +b.dataset.id, formato: $("formato").value });
+      $("cartaoPrevia").style.display = ""; $("cartaoPreviaImg").src = urlArquivo(r.arquivo) + "&t=" + Date.now();
+      $("cartaoPreviaTxt").textContent = `Cartão ${b.dataset.id} no instante ${fmtTempo(r.tempo)} (formato ${$("formato").value})` + (r.removido ? " — atenção: este trecho foi removido, o cartão não aparecerá." : ""); }
+    catch (e) { msg("msgCartoes", e.message, "erro"); }
+  });
+}
+$("btnCartaoAdd").onclick = async () => {
+  try {
+    const tipo = $("ctTipo").value;
+    const corpo = { tipo, texto: $("ctTexto").value.trim(), destaque: $("ctDestaque").value.trim(), posicao: $("ctPos").value || null,
+      fala: $("ctFala").value || null, inicio: $("ctIni").value || null, fim: $("ctFim").value || null };
+    if (tipo === "chips") corpo.itens = corpo.texto;
+    const r = await api("cartoes/adicionar", corpo);
+    msg("msgCartoes", `Cartão ${r.cartao.id} adicionado. Clique em “ver” para conferir como fica.`, "ok");
+    $("ctTexto").value = $("ctDestaque").value = $("ctFala").value = $("ctIni").value = $("ctFim").value = "";
+    carregar();
+  } catch (e) { msg("msgCartoes", e.message, "erro"); }
+};
 
 async function carregarExportados() {
   const lista = await api("exportados");
@@ -375,6 +438,9 @@ async function salvarConfig() {
     encerramento: { texto: $("encTexto").value.trim(), ativo: $("encAtivo").checked },
     logo: { arquivo: $("logoArquivo").value || null, posicao: $("logoPos").value, ativo: $("logoAtivo").checked },
     audio: { ganho_db: +$("ganho").value || 0, melhorar_voz: $("melhorarVoz").checked, normalizar: $("normalizar").checked },
+    legendas: { modo: $("legModo").value || null, posicao_percentual: $("legPos").value ? +$("legPos").value / 100 : null },
+    marca_dagua: { texto: $("mdTexto").value.trim(), posicao: $("mdPos").value || null, ativo: !!($("mdTexto").value.trim() || ($("mdPos").value)) || undefined },
+    assinatura: { nome: $("assNome").value.trim(), handle: $("assHandle").value.trim(), inicio: +$("assIni").value || 0, fim: +$("assFim").value || 0, ativo: $("assAtivo").checked },
   });
 }
 $("btnSalvarConfig").onclick = async () => { try { await salvarConfig(); msg("msgConfig", "Configurações salvas no projeto.", "ok"); carregar(); } catch (e) { msg("msgConfig", e.message, "erro"); } };

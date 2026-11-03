@@ -6,7 +6,8 @@ import shutil
 import textwrap
 from pathlib import Path
 
-from .estilos import caminho_fonte, caminho_logo, carregar_perfil
+from .estilos import caminho_fonte, caminho_logo, carregar_perfil, perfil_do_projeto
+from .cartoes import planejar_sobreposicoes
 from .legendas import construir_legendas, escrever_ass, escrever_srt
 from .projeto import caminho_origem, dimensoes_formato, duracao_editada, trechos_mantidos
 from .util import (PASTA_EXPORTADOS, PASTA_FONTES, ErroEdicao, cor_ffmpeg, escapar_filtro,
@@ -164,7 +165,7 @@ def _cartao(pasta: Path, perfil: dict, plano: dict, tipo: str, indice_logo: int 
 def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: str = "final",
                nome_saida: str | None = None, ao_progredir=None) -> dict:
     """Gera o vídeo (prévia ou final) e, na exportação final, o SRT ao lado. Retorna um resumo."""
-    perfil = carregar_perfil(dados.get("perfil", "pessoal"))
+    perfil = perfil_do_projeto(dados)
     formato = formato or dados.get("formato", "16:9")
     origem = caminho_origem(dados)
     info = dados["origem"]["info"]
@@ -188,6 +189,12 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
     if plano["logo"]:
         entradas += ["-i", plano["logo"]]
         indice_logo = 1
+    # Cartões, marca d'água e assinatura (PNGs desenhados agora, na resolução de saída)
+    sobreposicoes = planejar_sobreposicoes(dados, perfil, plano["largura"], plano["altura"], trabalho)
+    indices_sobre = []
+    for sp in sobreposicoes:
+        entradas += ["-i", sp["arquivo"]]
+        indices_sobre.append(len(entradas) // 2 - 1)
 
     # --- Filtro principal: cortes + concat
     fc = []
@@ -224,6 +231,16 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
         fc.append(f"[vp][logo]overlay={pos[posicao]}:format=auto[vmain]")
     else:
         fc.append("[vp]null[vmain]")
+    atual_v = "[vmain]"
+    for n, (sp, idx) in enumerate(zip(sobreposicoes, indices_sobre)):
+        ativo = f":enable='between(t,{sp['inicio']:.3f},{sp['fim']:.3f})'" if sp["fim"] is not None else ""
+        fc.append(f"{atual_v}[{idx}:v]overlay=x={sp['x']}:y={sp['y']}:format=auto{ativo}[vs{n}]")
+        atual_v = f"[vs{n}]"
+    if atual_v != "[vmain]":
+        fc.append(f"{atual_v}null[vmain2]")
+        fc[-1] = fc[-1]  # mantém legível
+    else:
+        fc.append("[vmain]null[vmain2]")
     fc.append(f"[ac]{_filtro_audio(plano)}[amain]")
 
     # --- Cartões
@@ -232,13 +249,13 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
         f, rv, ra = _cartao(trabalho, perfil, plano, "titulo", indice_logo)
         fc.append(f)
         sequencia.append((rv, ra))
-    sequencia.append(("[vmain]", "[amain]"))
+    sequencia.append(("[vmain2]", "[amain]"))
     if plano["encerramento_ativo"]:
         f, rv, ra = _cartao(trabalho, perfil, plano, "encerramento", indice_logo)
         fc.append(f)
         sequencia.append((rv, ra))
     if len(sequencia) == 1:
-        fc.append("[vmain]null[vout];[amain]anull[aout]")
+        fc.append("[vmain2]null[vout];[amain]anull[aout]")
     else:
         fc.append("".join(rv + ra for rv, ra in sequencia) + f"concat=n={len(sequencia)}:v=1:a=1[vout][aout]")
 
@@ -269,7 +286,8 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
 
     resultado = {"arquivo": str(saida), "formato": formato, "qualidade": qualidade, "duracao_prevista": round(duracao_total, 3),
                  "legendas": len(legendas), "trechos": len(plano["trechos"]), "logo": bool(plano["logo"]),
-                 "titulo": bool(plano["duracao_titulo"]), "encerramento": plano["encerramento_ativo"]}
+                 "titulo": bool(plano["duracao_titulo"]), "encerramento": plano["encerramento_ativo"],
+                 "cartoes": len(sobreposicoes)}
     if qualidade == "final":
         srt = saida.with_suffix(".srt")
         if legendas:
@@ -282,7 +300,7 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
 
 def quadro(pasta: Path, dados: dict, tempo: float, formato: str | None = None) -> dict:
     """Gera duas imagens: o quadro original com a área de corte marcada e o resultado enquadrado."""
-    perfil = carregar_perfil(dados.get("perfil", "pessoal"))
+    perfil = perfil_do_projeto(dados)
     formato = formato or dados.get("formato", "16:9")
     origem = caminho_origem(dados)
     info = dados["origem"]["info"]
@@ -305,6 +323,38 @@ def quadro(pasta: Path, dados: dict, tempo: float, formato: str | None = None) -
               "-frames:v", "1", "-vf", marcacao + "scale=-2:540", str(original)], "geração do quadro original")
     return {"original": str(original), "enquadrado": str(enquadrado), "tempo": tempo, "formato": formato,
             "enquadramento": plano["enquadramento"]}
+
+
+def quadro_cartao(pasta: Path, dados: dict, ident: int, formato: str | None = None) -> dict:
+    """Imagem de conferência: quadro do vídeo no início do cartão, já enquadrado, com o cartão e a marca d'água por cima."""
+    from PIL import Image
+    from .cartoes import planejar_sobreposicoes
+    from .projeto import mapear_intervalo
+    cartao = next((c for c in dados.get("cartoes", []) if c["id"] == int(ident)), None)
+    if cartao is None:
+        raise ErroEdicao(f"Cartão [{ident}] não existe.")
+    perfil = perfil_do_projeto(dados)
+    formato = formato or dados.get("formato", "16:9")
+    plano = _plano(dados, perfil, formato, "final")
+    trabalho = pasta / "trabalho"
+    trabalho.mkdir(exist_ok=True)
+    origem = caminho_origem(dados)
+    tempo = float(cartao["inicio"]) + min(0.5, (float(cartao["fim"]) - float(cartao["inicio"])) / 2)
+    base = trabalho / f"quadro-cartao-{ident}-base.png"
+    executar([ffmpeg_bin(), "-hide_banner", "-y", "-loglevel", "error", "-ss", f"{tempo:.3f}", "-i", str(origem), "-frames:v", "1",
+              "-vf", _filtro_enquadramento(dados["origem"]["info"], plano, perfil), str(base)], "quadro do cartão")
+    img = Image.open(base).convert("RGBA")
+    novo = mapear_intervalo(dados, float(cartao["inicio"]), float(cartao["fim"]))
+    t_edit = (novo[0] + min(0.5, (novo[1] - novo[0]) / 2)) if novo else None
+    for sp in planejar_sobreposicoes(dados, perfil, plano["largura"], plano["altura"], trabalho):
+        visivel = sp["fim"] is None or (t_edit is not None and sp["inicio"] <= t_edit <= sp["fim"])
+        if visivel:
+            camada = Image.open(sp["arquivo"]).convert("RGBA")
+            img.alpha_composite(camada, (int(sp["x"]), int(sp["y"])))
+    saida = trabalho / f"quadro-cartao-{ident}.jpg"
+    img.convert("RGB").save(saida, quality=88)
+    base.unlink(missing_ok=True)
+    return {"arquivo": str(saida), "tempo": tempo, "removido": novo is None}
 
 
 def verificar_saida(arquivo: Path) -> dict:

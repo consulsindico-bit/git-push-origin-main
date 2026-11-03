@@ -128,6 +128,9 @@ def construir_legendas(dados: dict, perfil: dict, largura: int | None = None, al
                 continue
             palavras.append({"p": w["p"], "inicio": novo[0], "fim": novo[1], "seg": seg["id"]})
 
+    if cfg.get("modo") == "curtas":
+        return _agrupar_curtas(palavras, int(cfg.get("max_palavras", 3)), bool(cfg.get("sem_pontuacao", False)))
+
     # 2) Agrupa em legendas
     legendas: list[dict] = []
     atual: list[dict] = []
@@ -167,6 +170,43 @@ def construir_legendas(dados: dict, perfil: dict, largura: int | None = None, al
     return legendas
 
 
+def _limpar_pontuacao(texto: str) -> str:
+    return re.sub(r"[.,;:!?…]+(\s|$)", r"\1", texto).strip()
+
+
+def _agrupar_curtas(palavras: list[dict], max_palavras: int, sem_pontuacao: bool) -> list[dict]:
+    """Grupos de 1 a max_palavras palavras, no ritmo da fala (estilo das referências)."""
+    legendas: list[dict] = []
+    atual: list[dict] = []
+
+    def fechar():
+        if atual:
+            texto = " ".join(w["p"] for w in atual)
+            if sem_pontuacao:
+                texto = _limpar_pontuacao(texto)
+            if texto:
+                legendas.append({"inicio": atual[0]["inicio"], "fim": atual[-1]["fim"], "texto": texto,
+                                 "segmentos": sorted({w["seg"] for w in atual})})
+            atual.clear()
+
+    for w in palavras:
+        if atual:
+            pausa = w["inicio"] - atual[-1]["fim"]
+            fim_frase = bool(PONTUACAO_FIM.search(atual[-1]["p"])) or bool(PONTUACAO_PAUSA.search(atual[-1]["p"]))
+            if len(atual) >= max_palavras or pausa > 0.45 or fim_frase or (w["fim"] - atual[0]["inicio"]) > 2.2:
+                fechar()
+        atual.append(w)
+    fechar()
+    for i, leg in enumerate(legendas):
+        minimo = 0.45
+        if leg["fim"] - leg["inicio"] < minimo:
+            leg["fim"] = leg["inicio"] + minimo
+        if i + 1 < len(legendas) and leg["fim"] > legendas[i + 1]["inicio"] - 0.02:
+            leg["fim"] = max(leg["inicio"] + 0.2, legendas[i + 1]["inicio"] - 0.02)
+        leg["inicio"], leg["fim"] = round(leg["inicio"], 3), round(leg["fim"], 3)
+    return legendas
+
+
 # ---------------------------------------------------------------- escrita
 
 def escrever_srt(legendas: list[dict], caminho: Path, deslocamento: float = 0.0) -> Path:
@@ -189,7 +229,12 @@ def escrever_ass(legendas: list[dict], caminho: Path, perfil: dict, largura: int
     margem_v = int(altura * float(cfg.get("margem_vertical", 0.10)))
     margem_h = int(largura * 0.06)
     alinhamento = {"inferior": 2, "centro": 5, "superior": 8}.get(cfg.get("posicao", "inferior"), 2)
+    if cfg.get("posicao_percentual") is not None:
+        # base do texto a X% da altura, medida do topo (ex.: 0.62 = abaixo do rosto num vídeo vertical)
+        alinhamento = 2
+        margem_v = int(altura * (1.0 - float(cfg["posicao_percentual"])))
     negrito = -1 if perfil.get("fonte", {}).get("negrito", True) else 0
+    italico = -1 if cfg.get("italico") else 0
     cor_texto = cor_ass(cfg.get("cor_texto", "#FFFFFF"))
     if cfg.get("cor_fundo"):
         estilo_borda = 3
@@ -203,7 +248,7 @@ def escrever_ass(legendas: list[dict], caminho: Path, perfil: dict, largura: int
         cor_borda = cor_ass(cfg.get("cor_contorno", "#000000"))
         cor_sombra = cor_ass("#000000", 128)
         contorno = int(cfg.get("espessura_contorno", 3))
-        sombra = 1
+        sombra = int(cfg.get("sombra", 1))
     cabecalho = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {largura}
@@ -213,7 +258,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Padrao,{familia},{tamanho},{cor_texto},{cor_texto},{cor_borda},{cor_sombra},{negrito},0,0,0,100,100,0,0,{estilo_borda},{contorno},{sombra},{alinhamento},{margem_h},{margem_h},{margem_v},1
+Style: Padrao,{familia},{tamanho},{cor_texto},{cor_texto},{cor_borda},{cor_sombra},{negrito},{italico},0,0,100,100,0,0,{estilo_borda},{contorno},{sombra},{alinhamento},{margem_h},{margem_h},{margem_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

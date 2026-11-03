@@ -1,43 +1,143 @@
 1
-00:00:00,000 --> 00:00:02,480
-Olá! Seja bem-vindo ao
-canal do Consul Síndico.
+00:00:00,000 --> 00:00:00,450
+Olá
 
 2
-00:00:03,110 --> 00:00:06,600
-Hoje eu vou explicar, de forma bem
-simples, como funciona a prestação de
+00:00:00,500 --> 00:00:01,160
+Seja bem-vindo ao
 
 3
-00:00:06,650 --> 00:00:10,532
-contas do condomínio. Todo mês, o
-síndico precisa reunir os comprovantes
+00:00:01,180 --> 00:00:01,920
+canal do Consul
 
 4
-00:00:10,582 --> 00:00:14,372
-de despesas e receitas. Esses
-documentos são organizados em um
+00:00:01,940 --> 00:00:02,480
+Síndico
 
 5
-00:00:14,422 --> 00:00:16,702
-balancete, que mostra
-para onde foi o dinheiro.
+00:00:03,110 --> 00:00:03,510
+Hoje eu vou
 
 6
-00:00:17,254 --> 00:00:19,694
-O conselho fiscal analisa o
-balancete e emite um parecer.
+00:00:03,530 --> 00:00:03,850
+explicar
 
 7
-00:00:20,554 --> 00:00:24,254
-Na assembleia, os condôminos aprovam
-ou reprovam as contas apresentadas.
+00:00:03,870 --> 00:00:04,690
+de forma bem
 
 8
-00:00:24,658 --> 00:00:28,008
-Se você gostou deste conteúdo,
-compartilhe com os moradores do seu
+00:00:04,710 --> 00:00:05,110
+simples
 
 9
-00:00:28,058 --> 00:00:29,512
-condomínio. Até a próxima!
+00:00:05,130 --> 00:00:06,110
+como funciona a
+
+10
+00:00:06,130 --> 00:00:07,010
+prestação de contas
+
+11
+00:00:07,030 --> 00:00:07,810
+do condomínio
+
+12
+00:00:08,082 --> 00:00:08,532
+Todo mês
+
+13
+00:00:08,762 --> 00:00:09,442
+o síndico precisa
+
+14
+00:00:09,462 --> 00:00:10,562
+reunir os comprovantes
+
+15
+00:00:10,582 --> 00:00:11,322
+de despesas e
+
+16
+00:00:11,342 --> 00:00:11,862
+receitas
+
+17
+00:00:12,682 --> 00:00:13,522
+Esses documentos são
+
+18
+00:00:13,542 --> 00:00:14,402
+organizados em um
+
+19
+00:00:14,422 --> 00:00:15,002
+balancete
+
+20
+00:00:15,322 --> 00:00:15,862
+que mostra para
+
+21
+00:00:15,882 --> 00:00:16,402
+onde foi o
+
+22
+00:00:16,422 --> 00:00:16,872
+dinheiro
+
+23
+00:00:17,254 --> 00:00:17,854
+O conselho fiscal
+
+24
+00:00:17,874 --> 00:00:18,934
+analisa o balancete
+
+25
+00:00:18,954 --> 00:00:19,394
+e emite um
+
+26
+00:00:19,414 --> 00:00:19,864
+parecer
+
+27
+00:00:20,554 --> 00:00:21,214
+Na assembleia
+
+28
+00:00:21,414 --> 00:00:22,434
+os condôminos aprovam
+
+29
+00:00:22,454 --> 00:00:23,134
+ou reprovam as
+
+30
+00:00:23,154 --> 00:00:24,254
+contas apresentadas
+
+31
+00:00:24,658 --> 00:00:25,398
+Se você gostou
+
+32
+00:00:25,418 --> 00:00:26,198
+deste conteúdo
+
+33
+00:00:26,658 --> 00:00:27,278
+compartilhe com os
+
+34
+00:00:27,298 --> 00:00:28,038
+moradores do seu
+
+35
+00:00:28,058 --> 00:00:28,798
+condomínio
+
+36
+00:00:28,972 --> 00:00:29,512
+Até a próxima

@@ -44,5 +44,13 @@
     "duracao": 4.0,
     "mostrar_logo": true
   },
-  "fundo_caber": "#0A1A3C"
+  "fundo_caber": "#0A1A3C",
+  "cartoes": {
+    "fundo": "#FFFFFF",
+    "texto": "#0A1A3C",
+    "destaque": "#C2942B",
+    "check": "#2E9E5B",
+    "chip_fundo": "#0A1A3C",
+    "chip_texto": "#FFFFFF"
+  }
 }

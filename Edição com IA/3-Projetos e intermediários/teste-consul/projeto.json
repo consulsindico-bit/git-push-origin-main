@@ -16,7 +16,7 @@
       "rotacao": 0
     }
   },
-  "perfil": "consul-sindico",
+  "perfil": "consul-sindico-reels",
   "transcricao": {
     "modelo": "small",
     "idioma": "pt",
@@ -700,7 +700,7 @@
     "centro_y": 0.5
   },
   "titulo": {
-    "texto": "Prestação de contas do condomínio",
+    "texto": "",
     "subtitulo": "Explicado de forma simples",
     "duracao": null
   },
@@ -716,7 +716,9 @@
     "ativo": true
   },
   "legendas": {
-    "ativas": true
+    "ativas": true,
+    "modo": null,
+    "posicao_percentual": null
   },
   "duracao_alvo": null,
   "historico": [
@@ -819,6 +821,26 @@
     {
       "quando": "2026-10-30T20:01:56",
       "acao": "exportado /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.mp4"
+    },
+    {
+      "quando": "2026-11-03T19:28:05",
+      "acao": "teste de cartões"
+    },
+    {
+      "quando": "2026-11-03T19:32:00",
+      "acao": "cartão 5 adicionado (interface)"
+    },
+    {
+      "quando": "2026-11-03T19:32:01",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-03T19:32:05",
+      "acao": "cartão 5 removido (interface)"
+    },
+    {
+      "quando": "2026-11-03T19:32:58",
+      "acao": "exportado exemplo reels"
     }
   ],
   "exportacoes": [
@@ -860,10 +882,90 @@
       "encerramento": true,
       "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.srt",
       "quando": "2026-10-30T20:01:56"
+    },
+    {
+      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-reels-9x16.mp4",
+      "formato": "9:16",
+      "qualidade": "final",
+      "duracao_prevista": 32.892,
+      "legendas": 36,
+      "trechos": 5,
+      "logo": true,
+      "titulo": false,
+      "encerramento": true,
+      "cartoes": 8,
+      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-reels-9x16.srt",
+      "quando": "2026-11-03T19:32:58"
     }
   ],
   "silencios_parametros": {
     "duracao_minima": 0.7,
     "limiar_db": -35.0
+  },
+  "cartoes": [
+    {
+      "id": 1,
+      "tipo": "titulo",
+      "texto": "Quais condomínios precisam de prestação de contas",
+      "inicio": 0.0,
+      "fim": 6.0,
+      "fala": null,
+      "posicao": "superior",
+      "destaque": "todo mês",
+      "itens": null,
+      "y": null
+    },
+    {
+      "id": 2,
+      "tipo": "check",
+      "texto": "Balancete organizado",
+      "inicio": 12.98,
+      "fim": 18.28,
+      "fala": 3,
+      "posicao": "inferior",
+      "destaque": "",
+      "itens": null,
+      "y": null
+    },
+    {
+      "id": 3,
+      "tipo": "chips",
+      "texto": "Receitas, Despesas, Parecer",
+      "inicio": 18.0,
+      "fim": 25.0,
+      "fala": null,
+      "posicao": "superior",
+      "destaque": "",
+      "itens": [
+        "Receitas",
+        "Despesas",
+        "Parecer"
+      ],
+      "y": null
+    },
+    {
+      "id": 4,
+      "tipo": "alerta",
+      "texto": "Aprovação só em assembleia",
+      "inicio": 25.58,
+      "fim": 33.46,
+      "fala": 5,
+      "posicao": "inferior",
+      "destaque": "",
+      "itens": null,
+      "y": null
+    }
+  ],
+  "marca_dagua": {
+    "texto": "@consulsindico",
+    "posicao": "superior-direita",
+    "ativo": true
+  },
+  "assinatura": {
+    "nome": "Consul Síndico",
+    "handle": "@consulsindico",
+    "inicio": 33,
+    "fim": 37.5,
+    "ativo": true
   }
 }

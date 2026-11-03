@@ -24,7 +24,16 @@ PERFIL_PADRAO = {
         "max_caracteres_linha": 38,
         "max_linhas": 2,
         "max_duracao": 5.0,
+        "modo": "frases",               # frases (2 linhas) | curtas (1 a 3 palavras no ritmo da fala)
+        "max_palavras": 3,              # só no modo curtas
+        "posicao_percentual": None,     # ex.: 0.62 = base do texto a 62% da altura (sobrepõe 'posicao')
+        "italico": False,
+        "sombra": 1,
+        "sem_pontuacao": False,         # remove vírgulas e pontos finais (visual das referências)
     },
+    "cartoes": {"fundo": "#FFFFFF", "texto": "#111111", "destaque": "#FFD200", "check": "#2E9E5B",
+                "chip_fundo": "#111111", "chip_texto": "#FFFFFF"},
+    "marca_dagua": {"texto": "", "posicao": "superior-direita"},
     "logo": {"arquivo": None, "posicao": "superior-direita", "largura": 0.14, "margem": 0.03},
     "titulo": {"fundo": "#111111", "cor": "#FFFFFF", "cor_subtitulo": "#FFD200", "duracao": 3.0},
     "encerramento": {"fundo": "#111111", "cor": "#FFFFFF", "texto": "", "duracao": 3.0, "mostrar_logo": True},
@@ -61,6 +70,27 @@ def criar_perfis_iniciais() -> None:
             "encerramento": {"fundo": "#0A1A3C", "cor": "#C2942B", "texto": "Consul Síndico",
                              "duracao": 4.0, "mostrar_logo": True},
             "fundo_caber": "#0A1A3C",
+            "cartoes": {"fundo": "#FFFFFF", "texto": "#0A1A3C", "destaque": "#C2942B", "check": "#2E9E5B",
+                        "chip_fundo": "#0A1A3C", "chip_texto": "#FFFFFF"},
+        }))
+    reels = PASTA_PERFIS / "consul-sindico-reels.json"
+    if not reels.exists():
+        gravar_json(reels, _mesclar(PERFIL_PADRAO, {
+            "nome": "Consul Síndico — Reels",
+            "tipo": "institucional",
+            "descricao": "Vertical, legendas curtas no ritmo da fala e cartões brancos com detalhes em dourado.",
+            "cores": {"primaria": "#0A1A3C", "destaque": "#C2942B", "texto": "#FFFFFF"},
+            "fonte": {"familia": "Arial", "arquivo": None, "negrito": True},
+            "legendas": {"modo": "curtas", "max_palavras": 3, "posicao_percentual": 0.62, "tamanho": 0.034,
+                         "italico": True, "sombra": 2, "sem_pontuacao": True, "cor_texto": "#FFFFFF",
+                         "cor_contorno": "#000000", "espessura_contorno": 1, "cor_fundo": None},
+            "logo": {"arquivo": "consul-sindico.png", "posicao": "superior-esquerda", "largura": 0.11, "margem": 0.03},
+            "titulo": {"fundo": "#0A1A3C", "cor": "#FFFFFF", "cor_subtitulo": "#C2942B", "duracao": 2.0},
+            "encerramento": {"fundo": "#0A1A3C", "cor": "#C2942B", "texto": "Consul Síndico", "duracao": 3.0, "mostrar_logo": True},
+            "fundo_caber": "#0A1A3C",
+            "cartoes": {"fundo": "#FFFFFF", "texto": "#0A1A3C", "destaque": "#C2942B", "check": "#2E9E5B",
+                        "chip_fundo": "#0A1A3C", "chip_texto": "#FFFFFF"},
+            "marca_dagua": {"texto": "@consulsindico", "posicao": "superior-direita"},
         }))
 
 
@@ -85,6 +115,15 @@ def carregar_perfil(identificador: str) -> dict:
         raise ErroEdicao(f"Perfil '{identificador}' não existe. Perfis disponíveis: {disponiveis}")
     perfil = _mesclar(PERFIL_PADRAO, ler_json(arq))
     perfil["id"] = identificador
+    return perfil
+
+
+def perfil_do_projeto(dados: dict) -> dict:
+    """Perfil do projeto com os ajustes de legenda feitos no próprio projeto (modo, posição...)."""
+    perfil = carregar_perfil(dados.get("perfil", "pessoal"))
+    ajustes = {k: v for k, v in (dados.get("legendas") or {}).items() if k != "ativas" and v is not None}
+    if ajustes:
+        perfil["legendas"] = _mesclar(perfil["legendas"], ajustes)
     return perfil
 
 
@@ -123,3 +162,28 @@ def caminho_fonte(perfil: dict) -> tuple[str, Path | None]:
         if p.exists():
             return fonte.get("familia") or p.stem, p
     return fonte.get("familia") or "Arial", None
+
+
+_FONTES_CANDIDATAS = {
+    # (negrito, itálico): lista de caminhos possíveis (Windows, macOS, Linux)
+    (True, False): ["C:/Windows/Fonts/arialbd.ttf", "/Library/Fonts/Arial Bold.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"],
+    (False, False): ["C:/Windows/Fonts/arial.ttf", "/Library/Fonts/Arial.ttf", "/System/Library/Fonts/Supplemental/Arial.ttf",
+                     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"],
+    (True, True): ["C:/Windows/Fonts/arialbi.ttf", "/System/Library/Fonts/Supplemental/Arial Bold Italic.ttf",
+                   "/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"],
+    (False, True): ["C:/Windows/Fonts/ariali.ttf", "/System/Library/Fonts/Supplemental/Arial Italic.ttf",
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
+}
+
+
+def arquivo_fonte(negrito: bool = True, italico: bool = False) -> Path | None:
+    """Arquivo .ttf disponível no sistema para desenhar cartões e textos (ou fonte da pasta 'fontes')."""
+    for arq in sorted(PASTA_FONTES.glob("*.ttf")) if PASTA_FONTES.exists() else []:
+        nome = arq.stem.lower()
+        if (("bold" in nome or "negrito" in nome) == negrito) and (("italic" in nome or "oblique" in nome) == italico):
+            return arq
+    for c in _FONTES_CANDIDATAS[(negrito, italico)] + _FONTES_CANDIDATAS[(True, False)]:
+        if Path(c).exists():
+            return Path(c)
+    return None

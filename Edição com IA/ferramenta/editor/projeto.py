@@ -39,6 +39,9 @@ def projeto_novo(nome: str, origem: Path, info: dict, perfil: str) -> dict:
         "encerramento": {"texto": "", "duracao": None, "ativo": False},
         "logo": {"arquivo": None, "posicao": None, "largura": None, "ativo": True},
         "legendas": {"ativas": True},
+        "cartoes": [],                               # ver cartoes.py
+        "marca_dagua": {"texto": "", "posicao": None, "ativo": False},
+        "assinatura": {"nome": "", "handle": "", "inicio": 0, "fim": 0, "ativo": False},
         "duracao_alvo": None,
         "historico": [],
         "exportacoes": [],
