@@ -207,6 +207,18 @@ def _agrupar_curtas(palavras: list[dict], max_palavras: int, sem_pontuacao: bool
     return legendas
 
 
+def _marcar_destaques(texto: str, destaques: list[str], cor: str, cor_normal: str) -> str:
+    """Envolve as palavras destacadas com a cor de destaque (sintaxe ASS)."""
+    if not destaques:
+        return texto
+    chaves = {_chave(d) for d in destaques}
+
+    def trocar(m):
+        palavra = m.group(0)
+        return f"{{\\c{cor}}}{palavra}{{\\c{cor_normal}}}" if _chave(palavra) in chaves else palavra
+    return re.sub(r"[\wáéíóúâêôãõçÁÉÍÓÚÂÊÔÃÕÇ$%.,-]+", trocar, texto)
+
+
 # ---------------------------------------------------------------- escrita
 
 def escrever_srt(legendas: list[dict], caminho: Path, deslocamento: float = 0.0) -> Path:
@@ -263,9 +275,11 @@ Style: Padrao,{familia},{tamanho},{cor_texto},{cor_texto},{cor_borda},{cor_sombr
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+    destaques = [d.strip() for d in (cfg.get("destaques") or []) if d.strip()]
+    cor_destaque = cor_ass(cfg.get("cor_destaque") or perfil["cores"].get("destaque", "#FFD200"))
     eventos = []
     for leg in legendas:
-        texto = leg["texto"].replace("\n", "\\N")
+        texto = _marcar_destaques(leg["texto"], destaques, cor_destaque, cor_texto).replace("\n", "\\N")
         eventos.append(f"Dialogue: 0,{tempo_ass(leg['inicio'] + deslocamento)},{tempo_ass(leg['fim'] + deslocamento)},"
                        f"Padrao,,0,0,0,,{texto}")
     caminho.parent.mkdir(parents=True, exist_ok=True)

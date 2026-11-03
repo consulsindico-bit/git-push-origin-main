@@ -85,6 +85,33 @@ def _filtro_enquadramento(info: dict, plano: dict, perfil: dict) -> str:
     return f"crop={cw}:{ch}:{x}:{y},scale={L}:{A}:flags=lanczos,setsar=1"
 
 
+def _filtro_zoom(dados: dict, perfil: dict, plano: dict) -> str | None:
+    """Aproximações suaves (zoompan) nos intervalos pedidos, já na linha do tempo cortada."""
+    from .projeto import mapear_intervalo
+    cfg = perfil.get("zoom", {})
+    fator_padrao = float(cfg.get("fator", 1.12))
+    entrada = max(0.1, float(cfg.get("entrada", 0.5)))
+    trechos = []
+    for z in dados.get("zooms", []) or []:
+        if not z.get("ativo", True):
+            continue
+        novo = mapear_intervalo(dados, float(z["inicio"]), float(z["fim"]))
+        if novo:
+            trechos.append((novo[0], novo[1], float(z.get("fator") or fator_padrao), z.get("tipo", "suave")))
+    if not trechos:
+        return None
+    expr = "1"
+    for ini, fim, fator, tipo in reversed(trechos):
+        if tipo == "corte":
+            valor = f"{fator:.4f}"
+        else:
+            e = min(entrada, (fim - ini) / 2)
+            valor = f"(1+{fator - 1:.4f}*min(1\\,(it-{ini:.3f})/{e:.3f}))"
+        expr = f"if(between(it\\,{ini:.3f}\\,{fim:.3f})\\,{valor}\\,{expr})"
+    L, A = plano["largura"], plano["altura"]
+    return (f"zoompan=z='{expr}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={L}x{A}:fps={FPS_SAIDA}")
+
+
 def _filtro_audio(plano: dict) -> str:
     cfg = plano["audio"] or {}
     partes = []
@@ -192,9 +219,16 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
     # Cartões, marca d'água e assinatura (PNGs desenhados agora, na resolução de saída)
     sobreposicoes = planejar_sobreposicoes(dados, perfil, plano["largura"], plano["altura"], trabalho)
     indices_sobre = []
+    n_entradas = 1 + (1 if indice_logo is not None else 0)
     for sp in sobreposicoes:
-        entradas += ["-i", sp["arquivo"]]
-        indices_sobre.append(len(entradas) // 2 - 1)
+        animado = sp.get("animacao", "nenhuma") != "nenhuma" and sp["fim"] is not None
+        if animado:
+            dur = max(0.2, sp["fim"] - sp["inicio"])
+            entradas += ["-loop", "1", "-framerate", str(FPS_SAIDA), "-t", f"{dur:.3f}", "-i", sp["arquivo"]]
+        else:
+            entradas += ["-i", sp["arquivo"]]
+        indices_sobre.append(n_entradas)
+        n_entradas += 1
 
     # --- Filtro principal: cortes + concat
     fc = []
@@ -210,7 +244,11 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
         fc.append("".join(rotulos) + f"concat=n={n_trechos}:v=1:a=1[vc][ac]")
 
     # --- Vídeo: enquadramento, fps, legendas, logo
-    cadeia_v = [_filtro_enquadramento(info, plano, perfil), f"fps={FPS_SAIDA}", "format=yuv420p"]
+    cadeia_v = [_filtro_enquadramento(info, plano, perfil), f"fps={FPS_SAIDA}"]
+    zoom = _filtro_zoom(dados, perfil, plano)
+    if zoom:
+        cadeia_v.append(zoom)
+    cadeia_v.append("format=yuv420p")
     if arq_ass:
         tem_fontes = PASTA_FONTES.exists() and any(f.suffix.lower() in (".ttf", ".otf") for f in PASTA_FONTES.iterdir())
         fontsdir = f":fontsdir='{escapar_filtro(str(PASTA_FONTES))}'" if tem_fontes else ""
@@ -233,8 +271,21 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
         fc.append("[vp]null[vmain]")
     atual_v = "[vmain]"
     for n, (sp, idx) in enumerate(zip(sobreposicoes, indices_sobre)):
-        ativo = f":enable='between(t,{sp['inicio']:.3f},{sp['fim']:.3f})'" if sp["fim"] is not None else ""
-        fc.append(f"{atual_v}[{idx}:v]overlay=x={sp['x']}:y={sp['y']}:format=auto{ativo}[vs{n}]")
+        anim = sp.get("animacao", "nenhuma")
+        if sp["fim"] is None or anim == "nenhuma":
+            ativo = f":enable='between(t,{sp['inicio']:.3f},{sp['fim']:.3f})'" if sp["fim"] is not None else ""
+            fc.append(f"{atual_v}[{idx}:v]overlay=x={sp['x']}:y={sp['y']}:format=auto{ativo}[vs{n}]")
+        else:
+            dur = max(0.2, sp["fim"] - sp["inicio"])
+            t_anim = min(0.35, dur / 3)
+            fc.append(f"[{idx}:v]format=rgba,fade=t=in:st=0:d={t_anim:.3f}:alpha=1,"
+                      f"fade=t=out:st={dur - t_anim:.3f}:d={t_anim:.3f}:alpha=1,setpts=PTS+{sp['inicio']:.3f}/TB[ov{n}]")
+            if anim == "subir":
+                desloc = int(plano["altura"] * 0.03)
+                y_expr = f"'{sp['y']}+{desloc}*max(0\\,1-(t-{sp['inicio']:.3f})/{t_anim:.3f})'"
+            else:
+                y_expr = str(sp["y"])
+            fc.append(f"{atual_v}[ov{n}]overlay=x={sp['x']}:y={y_expr}:format=auto:eof_action=pass:eval=frame[vs{n}]")
         atual_v = f"[vs{n}]"
     if atual_v != "[vmain]":
         fc.append(f"{atual_v}null[vmain2]")

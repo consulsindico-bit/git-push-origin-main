@@ -95,8 +95,13 @@ def _dados_projeto_para_tela(pasta: Path, dados: dict) -> dict:
     saida["logo_em_uso"] = str(estilos.caminho_logo(perfil, dados) or "")
     saida["perfil_dados"] = perfil
     saida["tipos_cartao"] = mod_cartoes.TIPOS
+    saida["animacoes"] = mod_cartoes.ANIMACOES
     for c in saida.get("cartoes") or []:
         c["removido"] = mod_projeto.mapear_intervalo(dados, c["inicio"], c["fim"]) is None
+    for z in saida.get("zooms") or []:
+        z["removido"] = mod_projeto.mapear_intervalo(dados, z["inicio"], z["fim"]) is None
+    mod_cartoes.PASTA_IMAGENS.mkdir(parents=True, exist_ok=True)
+    saida["imagens"] = [p.name for p in sorted(mod_cartoes.PASTA_IMAGENS.iterdir()) if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")]
     if dados.get("transcricao"):
         for seg in saida["transcricao"]["segmentos"]:
             seg["texto_marcado"] = mod_transcricao.texto_com_marcas(seg)
@@ -245,6 +250,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._importar_upload(q)
             if rota == "/api/logo/upload":
                 return self._logo_upload(q)
+            if rota == "/api/imagem/upload":
+                return self._imagem_upload(q)
             corpo = self._ler_json()
             fn = getattr(self, "rota_" + rota.replace("/api/", "").replace("/", "_"), None)
             if not fn:
@@ -296,6 +303,17 @@ class Handler(BaseHTTPRequestHandler):
         dados["logo"]["ativo"] = True
         mod_projeto.salvar(pasta, dados, acao=f"logo enviada: {nome}")
         return self._json({"ok": True, "arquivo": str(destino)})
+
+    def _imagem_upload(self, q):
+        nome = Path(q.get("nome", ["imagem.png"])[0]).name
+        if Path(nome).suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+            raise ErroEdicao("Envie imagens PNG, JPG ou WEBP.")
+        tamanho = int(self.headers.get("Content-Length") or 0)
+        mod_cartoes.PASTA_IMAGENS.mkdir(parents=True, exist_ok=True)
+        destino = mod_cartoes.PASTA_IMAGENS / nome
+        with open(destino, "wb") as f:
+            f.write(self.rfile.read(tamanho))
+        return self._json({"ok": True, "arquivo": nome})
 
     # --- rotas JSON
     def rota_projeto_selecionar(self, c):
@@ -415,12 +433,58 @@ class Handler(BaseHTTPRequestHandler):
         pasta, dados = _projeto_atual()
         itens = [i.strip() for i in (c.get("itens") or "").split(",") if i.strip()] or None
         fala = int(c["fala"]) if c.get("fala") not in (None, "") else None
-        item = mod_cartoes.adicionar(dados, c.get("tipo", "texto"), c.get("texto", ""),
-                                     float(c["inicio"]) if c.get("inicio") not in (None, "") else None,
-                                     float(c["fim"]) if c.get("fim") not in (None, "") else None,
-                                     fala=fala, posicao=c.get("posicao") or None, destaque=c.get("destaque", ""), itens=itens)
-        mod_projeto.salvar(pasta, dados, acao=f"cartão {item['id']} adicionado (interface)")
+        num = lambda k: float(c[k]) if c.get(k) not in (None, "") else None  # noqa: E731
+        item = mod_cartoes.adicionar(dados, c.get("tipo", "texto"), c.get("texto", ""), num("inicio"), num("fim"),
+                                     fala=fala, posicao=c.get("posicao") or None, destaque=c.get("destaque", ""), itens=itens,
+                                     numero=c.get("numero") or None, descricao=c.get("descricao", ""), imagem=c.get("imagem") or None,
+                                     palavra_ancora=(c.get("palavra") or "").strip() or None, duracao=num("duracao"),
+                                     animacao=c.get("animacao") or None, tamanho=num("tamanho"))
+        mod_projeto.salvar(pasta, dados, acao=f"elemento {item['id']} adicionado (interface)")
         return self._json({"ok": True, "cartao": item})
+
+    def rota_cartoes_atualizar(self, c):
+        pasta, dados = _projeto_atual()
+        campos = {k: c.get(k) for k in ("texto", "destaque", "posicao", "numero", "descricao", "animacao", "ativo", "cor_fundo", "cor_texto")}
+        for k in ("inicio", "fim", "y", "tamanho"):
+            if c.get(k) not in (None, ""):
+                campos[k] = float(c[k])
+        if c.get("itens"):
+            campos["itens"] = [i.strip() for i in c["itens"].split(",") if i.strip()]
+        item = mod_cartoes.atualizar(dados, int(c["id"]), **campos)
+        mod_projeto.salvar(pasta, dados, acao=f"elemento {c['id']} editado (interface)")
+        return self._json({"ok": True, "cartao": item})
+
+    def rota_zoom_adicionar(self, c):
+        pasta, dados = _projeto_atual()
+        ini, fim = c.get("inicio"), c.get("fim")
+        if c.get("fala") not in (None, ""):
+            seg = next((s for s in (dados.get("transcricao") or {}).get("segmentos", []) if s["id"] == int(c["fala"])), None)
+            if seg is None:
+                raise ErroEdicao(f"A fala [{c['fala']}] não existe.")
+            ini, fim = (ini if ini not in (None, "") else seg["inicio"]), (fim if fim not in (None, "") else seg["fim"])
+        if ini in (None, "") or fim in (None, ""):
+            raise ErroEdicao("Informe início e fim, ou a fala.")
+        item = mod_projeto.adicionar_zoom(dados, float(ini), float(fim), float(c["fator"]) if c.get("fator") else None, c.get("tipo") or "suave")
+        mod_projeto.salvar(pasta, dados, acao=f"zoom {item['id']} adicionado (interface)")
+        return self._json({"ok": True, "zoom": item})
+
+    def rota_zoom_remover(self, c):
+        pasta, dados = _projeto_atual()
+        dados["zooms"] = [z for z in dados.get("zooms", []) if z["id"] != int(c["id"])]
+        mod_projeto.salvar(pasta, dados, acao=f"zoom {c['id']} removido (interface)")
+        return self._json({"ok": True})
+
+    def rota_sugerir(self, c):
+        """Sugestões (tópicos e destaques) sem aplicar; a interface pede confirmação."""
+        import io, contextlib
+        from . import cli as mod_cli
+        pasta, dados = _projeto_atual()
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            class A: pass
+            a = A(); a.projeto = pasta.name; a.aplicar = bool(c.get("aplicar"))
+            mod_cli.cmd_sugerir(a)
+        return self._json({"ok": True, "texto": buf.getvalue()})
 
     def rota_cartoes_remover(self, c):
         pasta, dados = _projeto_atual()

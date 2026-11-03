@@ -12,6 +12,7 @@ PERFIL_PADRAO = {
     "descricao": "Estilo neutro para vídeos pessoais.",
     "cores": {"primaria": "#111111", "destaque": "#FFD200", "texto": "#FFFFFF"},
     "fonte": {"familia": "Arial", "arquivo": None, "negrito": True},
+    "fontes": {"titulos": None, "textos": None},   # ex.: "Montserrat" e "Open Sans" (arquivos .ttf na pasta fontes)
     "legendas": {
         "posicao": "inferior",          # inferior | centro | superior
         "margem_vertical": 0.10,        # fração da altura
@@ -30,7 +31,10 @@ PERFIL_PADRAO = {
         "italico": False,
         "sombra": 1,
         "sem_pontuacao": False,         # remove vírgulas e pontos finais (visual das referências)
+        "cor_destaque": None,           # cor das palavras destacadas (padrão: cores.destaque)
+        "destaques": [],                # palavras que ganham a cor de destaque nas legendas
     },
+    "zoom": {"fator": 1.12, "entrada": 0.5},
     "cartoes": {"fundo": "#FFFFFF", "texto": "#111111", "destaque": "#FFD200", "check": "#2E9E5B",
                 "chip_fundo": "#111111", "chip_texto": "#FFFFFF"},
     "marca_dagua": {"texto": "", "posicao": "superior-direita"},
@@ -72,6 +76,44 @@ def criar_perfis_iniciais() -> None:
             "fundo_caber": "#0A1A3C",
             "cartoes": {"fundo": "#FFFFFF", "texto": "#0A1A3C", "destaque": "#C2942B", "check": "#2E9E5B",
                         "chip_fundo": "#0A1A3C", "chip_texto": "#FFFFFF"},
+        }))
+    base_consul = {
+        "cores": {"primaria": "#0A1A3C", "destaque": "#C2942B", "texto": "#FFFFFF"},
+        "fonte": {"familia": "Open Sans", "arquivo": None, "negrito": True},
+        "fontes": {"titulos": "Montserrat", "textos": "Open Sans"},
+        "logo": {"arquivo": "consul-sindico.png", "posicao": "superior-esquerda", "largura": 0.11, "margem": 0.03},
+        "fundo_caber": "#0A1A3C",
+        "cartoes": {"fundo": "#FFFFFF", "texto": "#0A1A3C", "destaque": "#C2942B", "check": "#2E9E5B",
+                    "chip_fundo": "#0A1A3C", "chip_texto": "#FFFFFF", "palavra_cor": "#FFFFFF", "palavra_contorno": "#0A1A3C"},
+        "marca_dagua": {"texto": "", "posicao": "superior-direita"},
+    }
+    explicativo = PASTA_PERFIS / "explicativo-institucional.json"
+    if not explicativo.exists():
+        gravar_json(explicativo, _mesclar(_mesclar(PERFIL_PADRAO, base_consul), {
+            "nome": "Explicativo Institucional",
+            "tipo": "institucional",
+            "descricao": "Padrão Consul Síndico: título em blocos, pergunta no topo, legenda contínua pequena, "
+                         "identificação do apresentador, tópicos numerados, cartões e resumo final.",
+            "legendas": {"modo": "frases", "max_caracteres_linha": 30, "max_linhas": 2, "posicao_percentual": 0.80,
+                         "tamanho": 0.03, "italico": False, "sombra": 1, "cor_texto": "#FFFFFF", "cor_contorno": "#0A1A3C",
+                         "espessura_contorno": 2, "cor_fundo": None, "sem_pontuacao": False},
+            "titulo": {"fundo": "#0A1A3C", "cor": "#FFFFFF", "cor_subtitulo": "#C2942B", "duracao": 2.0},
+            "encerramento": {"fundo": "#0A1A3C", "cor": "#C2942B", "texto": "Consul Síndico", "duracao": 4.0, "mostrar_logo": True},
+            "zoom": {"fator": 1.08, "entrada": 0.6},
+        }))
+    insights = PASTA_PERFIS / "insights-dinamicos.json"
+    if not insights.exists():
+        gravar_json(insights, _mesclar(_mesclar(PERFIL_PADRAO, base_consul), {
+            "nome": "Insights Dinâmicos",
+            "tipo": "institucional",
+            "descricao": "Vertical e rápido: legendas muito curtas, palavras-chave grandes, etiquetas no topo, "
+                         "imagens de apoio e aproximações suaves.",
+            "legendas": {"modo": "curtas", "max_palavras": 2, "posicao_percentual": 0.60, "tamanho": 0.040,
+                         "italico": False, "sombra": 2, "cor_texto": "#FFFFFF", "cor_contorno": "#000000",
+                         "espessura_contorno": 1, "cor_fundo": None, "sem_pontuacao": True},
+            "titulo": {"fundo": "#0A1A3C", "cor": "#FFFFFF", "cor_subtitulo": "#C2942B", "duracao": 1.5},
+            "encerramento": {"fundo": "#0A1A3C", "cor": "#C2942B", "texto": "Consul Síndico", "duracao": 3.0, "mostrar_logo": True},
+            "zoom": {"fator": 1.15, "entrada": 0.4},
         }))
     reels = PASTA_PERFIS / "consul-sindico-reels.json"
     if not reels.exists():
@@ -152,8 +194,11 @@ def caminho_logo(perfil: dict, projeto: dict | None = None) -> Path | None:
 
 
 def caminho_fonte(perfil: dict) -> tuple[str, Path | None]:
-    """Retorna (nome da família, arquivo .ttf se houver)."""
+    """Retorna (nome da família, arquivo .ttf se houver) para as legendas."""
     fonte = perfil.get("fonte", {})
+    familia_textos = (perfil.get("fontes") or {}).get("textos")
+    if familia_textos and arquivo_fonte(True, False, familia_textos):
+        return familia_textos, arquivo_fonte(True, False, familia_textos)
     arquivo = fonte.get("arquivo")
     if arquivo:
         p = Path(arquivo)
@@ -177,11 +222,27 @@ _FONTES_CANDIDATAS = {
 }
 
 
-def arquivo_fonte(negrito: bool = True, italico: bool = False) -> Path | None:
-    """Arquivo .ttf disponível no sistema para desenhar cartões e textos (ou fonte da pasta 'fontes')."""
-    for arq in sorted(PASTA_FONTES.glob("*.ttf")) if PASTA_FONTES.exists() else []:
+def arquivo_fonte(negrito: bool = True, italico: bool = False, familia: str | None = None) -> Path | None:
+    """Arquivo .ttf para desenhar cartões e textos: primeiro a família pedida na pasta 'fontes'
+    (ex.: 'Montserrat' -> Montserrat-Bold.ttf), depois qualquer .ttf de lá, depois fontes do sistema."""
+    arquivos = sorted(PASTA_FONTES.glob("*.ttf")) if PASTA_FONTES.exists() else []
+    prefixo = (familia or "").replace(" ", "").lower()
+
+    def combina(arq: Path) -> bool:
         nome = arq.stem.lower()
-        if (("bold" in nome or "negrito" in nome) == negrito) and (("italic" in nome or "oblique" in nome) == italico):
+        eh_negrito = "bold" in nome or "negrito" in nome or "semibold" in nome
+        eh_italico = "italic" in nome or "oblique" in nome
+        return eh_negrito == negrito and eh_italico == italico
+
+    if prefixo:
+        for arq in arquivos:
+            if arq.stem.lower().replace(" ", "").startswith(prefixo) and combina(arq):
+                return arq
+        for arq in arquivos:  # mesma família, outro estilo
+            if arq.stem.lower().replace(" ", "").startswith(prefixo):
+                return arq
+    for arq in arquivos:
+        if combina(arq):
             return arq
     for c in _FONTES_CANDIDATAS[(negrito, italico)] + _FONTES_CANDIDATAS[(True, False)]:
         if Path(c).exists():

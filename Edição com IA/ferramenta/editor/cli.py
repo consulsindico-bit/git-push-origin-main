@@ -366,9 +366,25 @@ def cmd_cartoes(args):
         itens = [i.strip() for i in args.itens.split(",")] if args.itens else None
         item = mod_cartoes.adicionar(dados, args.adicionar, args.texto or "", ler_tempo(args.inicio) if args.inicio else None,
                                      ler_tempo(args.fim) if args.fim else None, fala=args.fala, posicao=args.posicao,
-                                     destaque=args.destaque or "", itens=itens, y=args.y)
-        mod_projeto.salvar(pasta, dados, acao=f"cartão {item['id']} ({item['tipo']}) adicionado")
-        imprimir(f"Cartão [{item['id']}] {item['tipo']} de {formatar_tempo(item['inicio'])} a {formatar_tempo(item['fim'])}: {item['texto']}")
+                                     destaque=args.destaque or "", itens=itens, y=args.y, numero=args.numero,
+                                     descricao=args.descricao or "", imagem=args.imagem, palavra_ancora=args.palavra,
+                                     duracao=args.duracao, animacao=args.animacao, tamanho=args.tamanho)
+        mod_projeto.salvar(pasta, dados, acao=f"elemento {item['id']} ({item['tipo']}) adicionado")
+        imprimir(f"Elemento [{item['id']}] {item['tipo']} de {formatar_tempo(item['inicio'])} a {formatar_tempo(item['fim'])}: "
+                 f"{item['texto'] or item.get('imagem') or ', '.join(item.get('itens') or [])}")
+    if args.editar is not None:
+        campos = {"texto": args.texto, "destaque": args.destaque, "posicao": args.posicao, "y": args.y, "numero": args.numero,
+                  "descricao": args.descricao, "animacao": args.animacao, "tamanho": args.tamanho,
+                  "inicio": ler_tempo(args.inicio) if args.inicio else None, "fim": ler_tempo(args.fim) if args.fim else None,
+                  "itens": [i.strip() for i in args.itens.split(",")] if args.itens else None,
+                  "cor_fundo": args.cor_fundo, "cor_texto": args.cor_texto}
+        item = mod_cartoes.atualizar(dados, args.editar, **campos)
+        mod_projeto.salvar(pasta, dados, acao=f"elemento {args.editar} editado")
+        imprimir(f"Elemento [{item['id']}] atualizado.")
+    if args.ativar is not None:
+        mod_cartoes.atualizar(dados, args.ativar, ativo=True); mod_projeto.salvar(pasta, dados, acao=f"elemento {args.ativar} ativado")
+    if args.desativar is not None:
+        mod_cartoes.atualizar(dados, args.desativar, ativo=False); mod_projeto.salvar(pasta, dados, acao=f"elemento {args.desativar} desativado")
     if args.remover is not None:
         if not mod_cartoes.remover(dados, args.remover):
             raise ErroEdicao(f"Cartão [{args.remover}] não existe.")
@@ -383,8 +399,12 @@ def cmd_cartoes(args):
     for c in lista:
         novo = mod_projeto.mapear_intervalo(dados, c["inicio"], c["fim"])
         situacao = "" if novo else " (caiu em trecho removido)"
-        imprimir(f"  [{c['id']}] {c['tipo']:7s} {formatar_tempo(c['inicio'], False)}-{formatar_tempo(c['fim'], False)} {c['posicao']}: "
-                 f"{c['texto'] or ', '.join(c.get('itens') or [])}{(' | destaque: ' + c['destaque']) if c.get('destaque') else ''}{situacao}")
+        if not c.get("ativo", True):
+            situacao += " (desativado)"
+        conteudo = c.get("texto") or c.get("imagem") or ", ".join(c.get("itens") or [])
+        extra = (f" | destaque: {c['destaque']}" if c.get("destaque") else "") + (f" | nº {c['numero']}" if c.get("numero") else "")
+        imprimir(f"  [{c['id']}] {c['tipo']:8s} {formatar_tempo(c['inicio'], False)}-{formatar_tempo(c['fim'], False)} {c['posicao']} "
+                 f"{c.get('animacao', 'fade')}: {conteudo}{extra}{situacao}")
 
 
 def cmd_marca_dagua(args):
@@ -409,6 +429,8 @@ def cmd_assinatura(args):
         a["ativo"] = bool(args.nome)
     if args.handle is not None:
         a["handle"] = args.handle
+    if args.cargo is not None:
+        a["cargo"] = args.cargo
     if args.inicio:
         a["inicio"] = ler_tempo(args.inicio)
     if args.fim:
@@ -419,6 +441,81 @@ def cmd_assinatura(args):
         raise ErroEdicao("Informe --inicio e --fim da faixa de assinatura.")
     mod_projeto.salvar(pasta, dados, acao=f"assinatura: {a}")
     imprimir(f"Assinatura: {a.get('nome')} {a.get('handle', '')} de {formatar_tempo(a.get('inicio', 0))} a {formatar_tempo(a.get('fim', 0))} — {'ativa' if a.get('ativo') else 'desativada'}")
+
+
+def cmd_zoom(args):
+    pasta, dados = _carregar(args)
+    if args.adicionar:
+        ini, fim = (ler_tempo(args.inicio) if args.inicio else None), (ler_tempo(args.fim) if args.fim else None)
+        if args.fala is not None:
+            seg = next((s for s in (dados.get("transcricao") or {}).get("segmentos", []) if s["id"] == args.fala), None)
+            if seg is None:
+                raise ErroEdicao(f"A fala [{args.fala}] não existe.")
+            ini, fim = (ini if ini is not None else seg["inicio"]), (fim if fim is not None else seg["fim"])
+        if ini is None or fim is None:
+            raise ErroEdicao("Informe --inicio e --fim (ou --fala).")
+        item = mod_projeto.adicionar_zoom(dados, ini, fim, args.fator, args.tipo)
+        mod_projeto.salvar(pasta, dados, acao=f"zoom {item['id']} adicionado")
+    if args.remover is not None:
+        dados["zooms"] = [z for z in dados.get("zooms", []) if z["id"] != args.remover]
+        mod_projeto.salvar(pasta, dados, acao=f"zoom {args.remover} removido")
+    lista = dados.get("zooms") or []
+    if not lista:
+        imprimir("Nenhum zoom. Ex.: zoom <projeto> --adicionar --fala 3 --tipo suave")
+    for z in lista:
+        imprimir(f"  [{z['id']}] {formatar_tempo(z['inicio'], False)}-{formatar_tempo(z['fim'], False)} {z['tipo']} fator {z.get('fator') or '(do perfil)'}")
+
+
+def cmd_destaques(args):
+    pasta, dados = _carregar(args)
+    cfg = dados.setdefault("legendas", {})
+    if args.limpar:
+        cfg["destaques"] = []
+    elif args.palavras:
+        atuais = cfg.get("destaques") or []
+        cfg["destaques"] = atuais + [p for p in args.palavras if p not in atuais]
+    mod_projeto.salvar(pasta, dados, acao=f"destaques: {cfg.get('destaques')}")
+    imprimir("Palavras em destaque nas legendas: " + (", ".join(cfg.get("destaques") or []) or "(nenhuma)"))
+
+
+def cmd_sugerir(args):
+    """Sugestões simples a partir da transcrição: tópicos (ordinais/enumerações) e palavras de destaque (repetidas e longas)."""
+    import re as _re
+    from collections import Counter
+    pasta, dados = _carregar(args)
+    if not dados.get("transcricao"):
+        raise ErroEdicao("Transcreva primeiro.")
+    segs = dados["transcricao"]["segmentos"]
+    ordinais = {"primeiro": 1, "primeira": 1, "segundo": 2, "segunda": 2, "terceiro": 3, "terceira": 3, "quarto": 4, "quinto": 5}
+    topicos = []
+    for seg in segs:
+        m = _re.match(r"\s*(primeiro|primeira|segundo|segunda|terceiro|terceira|quarto|quinto)[,:]?\s+(.*)", seg["texto"], _re.I)
+        if m:
+            titulo = m.group(2).split(".")[0].split(",")[0].strip()
+            titulo = titulo[0].upper() + titulo[1:] if titulo else titulo
+            topicos.append({"numero": ordinais[m.group(1).lower()], "titulo": titulo[:50], "fala": seg["id"]})
+    comuns = {"condomínio", "condominio", "porque", "quando", "também", "tambem", "então", "entao", "sobre", "ainda", "aqui", "você", "voce",
+              "todos", "todas", "essa", "esse", "esta", "este", "isso", "mais", "menos", "muito", "pessoal", "gente", "vamos", "para"}
+    contagem = Counter()
+    for seg in segs:
+        for w in _re.findall(r"[\wáéíóúâêôãõç]+", seg["texto"].lower()):
+            if len(w) >= 7 and w not in comuns:
+                contagem[w] += 1
+    destaques = [w for w, n in contagem.most_common(12) if n >= 2][:6]
+    imprimir("Sugestão de tópicos numerados:" if topicos else "Não encontrei enumerações (primeiro, segundo...) para sugerir tópicos.")
+    for t in topicos:
+        imprimir(f"  {t['numero']}. {t['titulo']}  (fala {t['fala']})")
+    imprimir("Sugestão de palavras em destaque: " + (", ".join(destaques) or "(nenhuma repetida o bastante)"))
+    if args.aplicar:
+        for t in topicos:
+            mod_cartoes.adicionar(dados, "topico", t["titulo"], fala=t["fala"], numero=t["numero"])
+        if destaques:
+            cfg = dados.setdefault("legendas", {})
+            cfg["destaques"] = list(dict.fromkeys((cfg.get("destaques") or []) + destaques))
+        mod_projeto.salvar(pasta, dados, acao="sugestões aplicadas")
+        imprimir("Aplicado. Ajuste textos e posições com 'cartoes --editar'.")
+    else:
+        imprimir("Nada foi aplicado. Para aplicar: sugerir <projeto> --aplicar")
 
 
 def cmd_perfil(args):
@@ -682,15 +779,34 @@ def construir_parser() -> argparse.ArgumentParser:
     s.add_argument("--inicio"); s.add_argument("--fim"); s.add_argument("--fala", type=int, help="usa o tempo desta fala da transcrição")
     s.add_argument("--posicao", choices=list(mod_cartoes.POSICOES)); s.add_argument("--y", type=float, help="posição manual, fração da altura")
     s.add_argument("--remover", type=int, metavar="ID"); s.add_argument("--previa", type=int, metavar="ID", help="gera imagem de conferência do cartão")
+    s.add_argument("--numero", help="(tópico) número"); s.add_argument("--descricao", help="(tópico) descrição curta")
+    s.add_argument("--imagem", help="(imagem) arquivo em '2-Identidade visual e referências/imagens' ou caminho completo")
+    s.add_argument("--palavra", help="aparece quando esta palavra é dita (ex.: --palavra balancete)")
+    s.add_argument("--duracao", type=float, help="duração em segundos (com --palavra ou --fala)")
+    s.add_argument("--animacao", choices=list(mod_cartoes.ANIMACOES)); s.add_argument("--tamanho", type=float, help="escala (1 = padrão; imagem: fração da largura)")
+    s.add_argument("--editar", type=int, metavar="ID"); s.add_argument("--ativar", type=int, metavar="ID"); s.add_argument("--desativar", type=int, metavar="ID")
+    s.add_argument("--cor-fundo"); s.add_argument("--cor-texto")
     s.set_defaults(fn=cmd_cartoes)
+
+    s = sub.add_parser("zoom", help="aproximações suaves ou cortes de zoom em trechos")
+    s.add_argument("projeto"); s.add_argument("--adicionar", action="store_true"); s.add_argument("--inicio"); s.add_argument("--fim")
+    s.add_argument("--fala", type=int); s.add_argument("--fator", type=float, help="ex.: 1.12"); s.add_argument("--tipo", choices=["suave", "corte"], default="suave")
+    s.add_argument("--remover", type=int, metavar="ID"); s.set_defaults(fn=cmd_zoom)
+
+    s = sub.add_parser("destaques", help="palavras que ganham a cor de destaque nas legendas")
+    s.add_argument("projeto"); s.add_argument("palavras", nargs="*", help="ex.: balancete parecer assembleia"); s.add_argument("--limpar", action="store_true")
+    s.set_defaults(fn=cmd_destaques)
+
+    s = sub.add_parser("sugerir", help="sugere tópicos e palavras de destaque a partir da transcrição (não aplica sem --aplicar)")
+    s.add_argument("projeto"); s.add_argument("--aplicar", action="store_true"); s.set_defaults(fn=cmd_sugerir)
 
     s = sub.add_parser("marca-dagua", help="texto pequeno no canto (ex.: @seuperfil)")
     s.add_argument("projeto"); s.add_argument("--texto"); s.add_argument("--posicao", choices=["superior-direita", "superior-esquerda", "inferior-direita", "inferior-esquerda"])
     s.add_argument("--desativar", action="store_true"); s.set_defaults(fn=cmd_marca_dagua)
 
     s = sub.add_parser("assinatura", help="faixa com nome e @ num trecho do vídeo")
-    s.add_argument("projeto"); s.add_argument("--nome"); s.add_argument("--handle"); s.add_argument("--inicio"); s.add_argument("--fim")
-    s.add_argument("--desativar", action="store_true"); s.set_defaults(fn=cmd_assinatura)
+    s.add_argument("projeto"); s.add_argument("--nome"); s.add_argument("--handle"); s.add_argument("--cargo", help="ex.: Síndico profissional · Consul Síndico")
+    s.add_argument("--inicio"); s.add_argument("--fim"); s.add_argument("--desativar", action="store_true"); s.set_defaults(fn=cmd_assinatura)
 
     s = sub.add_parser("perfil", help="define o perfil de estilo do projeto"); s.add_argument("projeto"); s.add_argument("perfil"); s.set_defaults(fn=cmd_perfil)
     s = sub.add_parser("perfis", help="lista os perfis de estilo"); s.set_defaults(fn=cmd_perfis)

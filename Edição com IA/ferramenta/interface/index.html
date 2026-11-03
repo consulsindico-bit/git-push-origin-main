@@ -168,22 +168,53 @@
   </section>
 
   <section>
-    <h2>5b. Cartões na tela <small>título no topo, confirmação ✓, alerta ⓘ, palavras-chave em pílulas ou caixa de texto; por tempo ou ancorados numa fala</small></h2>
+    <h2>5b. Estilo e elementos visuais <small>escolha um estilo, destaque palavras, adicione cartões, imagens e zoom; cada elemento entra na fala indicada</small></h2>
     <div class="linha">
-      <div><label>Tipo</label><select id="ctTipo"><option value="titulo">Título no topo</option><option value="check">Confirmação ✓</option><option value="alerta">Alerta ⓘ</option><option value="chips">Palavras-chave (pílulas)</option><option value="texto">Caixa de texto</option></select></div>
-      <div style="flex:2 1 300px"><label>Texto (para pílulas, separe por vírgula)</label><input type="text" id="ctTexto"></div>
-      <div><label>Destaque em dourado (só título; opcional)</label><input type="text" id="ctDestaque" placeholder="ex.: a partir de dezembro"></div>
+      <div><label>Estilo (perfil)</label><select id="estilo"></select></div>
+      <div><label>Palavras em destaque nas legendas (separe por vírgula)</label><input type="text" id="destaques" placeholder="ex.: inadimplência, cota condominial"></div>
+      <div style="align-self:end"><button id="btnEstiloSalvar">Aplicar estilo e destaques</button><button id="btnSugerir" class="sec">Sugerir tópicos e destaques</button></div>
+    </div>
+    <div id="msgEstilo"></div>
+    <details open style="margin-top:10px"><summary><b>Adicionar elemento</b></summary>
+    <div class="linha">
+      <div><label>Tipo</label><select id="ctTipo"></select></div>
+      <div style="flex:2 1 300px"><label>Texto (etiquetas e resumo: itens separados por vírgula)</label><input type="text" id="ctTexto"></div>
+      <div><label>Destaque dourado (título) / Nº (tópico)</label><input type="text" id="ctDestaque" placeholder="ex.: a partir de dezembro  ou  1"></div>
+      <div><label>Descrição curta (tópico)</label><input type="text" id="ctDescricao"></div>
     </div>
     <div class="linha">
-      <div><label>Fala da transcrição (nº; usa o tempo dela)</label><input type="number" id="ctFala" min="1" step="1"></div>
+      <div><label>Imagem de apoio (enviar)</label><input type="file" id="imgUpload" accept=".png,.jpg,.jpeg,.webp"></div>
+      <div><label>ou escolher imagem já enviada</label><select id="ctImagem"><option value="">—</option></select></div>
+      <div><label>Aparece quando esta palavra é dita</label><input type="text" id="ctPalavra" placeholder="ex.: balancete"></div>
+      <div><label>Duração (s, opcional)</label><input type="number" id="ctDuracao" step="0.5" min="0.3"></div>
+    </div>
+    <div class="linha">
+      <div><label>Fala nº (usa o tempo dela)</label><input type="number" id="ctFala" min="1" step="1"></div>
       <div><label>ou início (s)</label><input type="number" id="ctIni" step="0.5" min="0"></div>
       <div><label>fim (s)</label><input type="number" id="ctFim" step="0.5" min="0"></div>
       <div><label>Posição</label><select id="ctPos"><option value="">(padrão do tipo)</option><option value="superior">Topo</option><option value="centro">Centro</option><option value="inferior">Abaixo do rosto</option></select></div>
+      <div><label>Animação</label><select id="ctAnim"><option value="">(padrão)</option><option value="fade">Aparece/some suave</option><option value="subir">Sobe e aparece</option><option value="nenhuma">Nenhuma</option></select></div>
+      <div><label>Tamanho (1 = padrão; imagem: fração da largura)</label><input type="number" id="ctTamanho" step="0.1" min="0.2" max="2"></div>
     </div>
-    <button id="btnCartaoAdd">Adicionar cartão</button>
-    <div id="cartoesLista"></div>
+    <button id="btnCartaoAdd">Adicionar elemento</button>
+    </details>
+    <div id="cartoesLista" style="margin-top:10px"></div>
     <div id="msgCartoes"></div>
     <div id="cartaoPrevia" style="display:none;margin-top:8px"><p class="resumo" id="cartaoPreviaTxt"></p><img class="quadro" id="cartaoPreviaImg" style="object-fit:contain;max-height:520px"></div>
+    <details style="margin-top:12px"><summary><b>Zoom (aproximações)</b></summary>
+      <div class="linha">
+        <div><label>Fala nº</label><input type="number" id="zFala" min="1" step="1"></div>
+        <div><label>ou início (s)</label><input type="number" id="zIni" step="0.5" min="0"></div>
+        <div><label>fim (s)</label><input type="number" id="zFim" step="0.5" min="0"></div>
+        <div><label>Tipo</label><select id="zTipo"><option value="suave">Suave (aproxima aos poucos)</option><option value="corte">Corte (aproximação imediata)</option></select></div>
+        <div><label>Fator (vazio = do perfil)</label><input type="number" id="zFator" step="0.01" min="1.02" max="1.6" placeholder="1.12"></div>
+        <div style="align-self:end"><button id="btnZoomAdd" class="sec">Adicionar zoom</button></div>
+      </div>
+      <div id="zoomLista"></div>
+    </details>
+    <details style="margin-top:12px"><summary><b>Linha do tempo visual</b> (fala, legenda, destaques, elementos e zoom por trecho)</summary>
+      <div id="linhaTempo"></div>
+    </details>
   </section>
 
   <section>
@@ -248,7 +279,12 @@ async function carregar() {
   $("legModo").value = p.legendas.modo || ""; $("legPos").value = p.legendas.posicao_percentual != null ? Math.round(p.legendas.posicao_percentual * 100) : "";
   const md = p.marca_dagua || {}; $("mdTexto").value = md.texto || ""; $("mdPos").value = md.posicao || "";
   const as = p.assinatura || {}; $("assNome").value = as.nome || ""; $("assHandle").value = as.handle || ""; $("assIni").value = as.inicio ?? ""; $("assFim").value = as.fim ?? ""; $("assAtivo").checked = !!as.ativo;
-  renderCartoes(p);
+  $("estilo").innerHTML = estado.perfis.map(x => `<option value="${esc(x.id)}">${esc(x.nome)} — ${esc(x.descricao)}</option>`).join("");
+  $("estilo").value = p.perfil;
+  $("destaques").value = (p.legendas.destaques || []).join(", ");
+  $("ctTipo").innerHTML = Object.entries(p.tipos_cartao).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("ctImagem").innerHTML = "<option value=''>—</option>" + (p.imagens || []).map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("");
+  renderCartoes(p); renderZooms(p); renderLinhaTempo(p);
   document.querySelectorAll(".fmt").forEach(c => c.checked = c.value === p.formato);
   const logos = await api("logos");
   $("logoArquivo").innerHTML = "<option value=''>(usar a do perfil: " + esc(p.perfil_dados.logo.arquivo || "nenhuma") + ")</option>" + logos.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
@@ -308,26 +344,83 @@ function renderCortes(p) {
 function renderCartoes(p) {
   const el = $("cartoesLista");
   const lista = p.cartoes || [];
-  if (!lista.length) { el.innerHTML = "<p class='resumo'>Nenhum cartão ainda.</p>"; return; }
-  el.innerHTML = `<table><thead><tr><th>#</th><th>Tipo</th><th>Quando</th><th>Texto</th><th>Posição</th><th></th></tr></thead><tbody>` +
-    lista.map(c => `<tr class="${c.removido ? "removida" : ""}"><td>${c.id}</td><td>${esc(p.tipos_cartao[c.tipo] || c.tipo)}</td><td>${fmtTempo(c.inicio)}–${fmtTempo(c.fim)}${c.fala ? ` (fala ${c.fala})` : ""}${c.removido ? " <span class='tag aviso'>trecho removido</span>" : ""}</td><td>${esc(c.texto || (c.itens || []).join(", "))}${c.destaque ? ` <span class="tag">${esc(c.destaque)}</span>` : ""}</td><td>${esc(c.posicao)}</td><td><button class="sec ctPrevia" data-id="${c.id}">ver</button><button class="perigo ctRemover" data-id="${c.id}">remover</button></td></tr>`).join("") + "</tbody></table>";
+  if (!lista.length) { el.innerHTML = "<p class='resumo'>Nenhum elemento ainda.</p>"; return; }
+  el.innerHTML = `<table><thead><tr><th>Ativo</th><th>#</th><th>Tipo</th><th>Quando (s)</th><th>Texto / imagem</th><th>Posição</th><th>Animação</th><th></th></tr></thead><tbody>` +
+    lista.map(c => `<tr class="${c.removido ? "removida" : ""} ${c.ativo === false ? "removida" : ""}" data-id="${c.id}">
+      <td><input type="checkbox" class="ctAtivo" data-id="${c.id}" ${c.ativo === false ? "" : "checked"}></td>
+      <td>${c.id}</td><td>${esc(c.tipo)}${c.numero ? " nº " + esc(c.numero) : ""}</td>
+      <td><input type="number" step="0.1" class="ctEdIni" value="${c.inicio}" style="width:70px"> – <input type="number" step="0.1" class="ctEdFim" value="${c.fim}" style="width:70px">${c.fala ? `<br><small>fala ${c.fala}</small>` : ""}${c.removido ? " <span class='tag aviso'>trecho removido</span>" : ""}</td>
+      <td><input type="text" class="ctEdTexto" value="${esc(c.tipo === "imagem" ? (c.imagem || "") : (c.texto || (c.itens || []).join(", ")))}" ${c.tipo === "imagem" ? "disabled" : ""}>${c.destaque ? `<br><input type="text" class="ctEdDestaque" value="${esc(c.destaque)}" placeholder="destaque">` : ""}${c.descricao !== undefined && c.tipo === "topico" ? `<br><input type="text" class="ctEdDescricao" value="${esc(c.descricao || "")}" placeholder="descrição">` : ""}</td>
+      <td><select class="ctEdPos"><option value="superior" ${c.posicao === "superior" ? "selected" : ""}>Topo</option><option value="centro" ${c.posicao === "centro" ? "selected" : ""}>Centro</option><option value="inferior" ${c.posicao === "inferior" ? "selected" : ""}>Abaixo</option></select><br><input type="number" class="ctEdY" step="0.02" min="0.02" max="0.98" value="${c.y ?? ""}" placeholder="y %" style="width:70px"></td>
+      <td><select class="ctEdAnim">${Object.entries(p.animacoes).map(([k, v]) => `<option value="${k}" ${c.animacao === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select><br><input type="number" class="ctEdTam" step="0.1" min="0.2" max="2" value="${c.tamanho ?? ""}" placeholder="tam." style="width:70px"></td>
+      <td><button class="sec ctSalvar" data-id="${c.id}">salvar</button><button class="sec ctPrevia" data-id="${c.id}">ver</button><button class="perigo ctRemover" data-id="${c.id}">remover</button></td></tr>`).join("") + "</tbody></table>";
   el.querySelectorAll(".ctRemover").forEach(b => b.onclick = async () => { try { await api("cartoes/remover", { id: +b.dataset.id }); carregar(); } catch (e) { msg("msgCartoes", e.message, "erro"); } });
+  el.querySelectorAll(".ctAtivo").forEach(b => b.onchange = async () => { try { await api("cartoes/atualizar", { id: +b.dataset.id, ativo: b.checked }); carregar(); } catch (e) { msg("msgCartoes", e.message, "erro"); } });
+  el.querySelectorAll(".ctSalvar").forEach(b => b.onclick = async () => {
+    const tr = b.closest("tr"); const q = (cls) => tr.querySelector(cls);
+    const corpo = { id: +b.dataset.id, inicio: q(".ctEdIni").value, fim: q(".ctEdFim").value, posicao: q(".ctEdPos").value, y: q(".ctEdY").value, animacao: q(".ctEdAnim").value, tamanho: q(".ctEdTam").value };
+    const c = (p.cartoes || []).find(x => x.id === +b.dataset.id);
+    if (c && c.tipo !== "imagem") { if (c.tipo === "chips" || c.tipo === "resumo") corpo.itens = q(".ctEdTexto").value; else corpo.texto = q(".ctEdTexto").value; }
+    if (q(".ctEdDestaque")) corpo.destaque = q(".ctEdDestaque").value;
+    if (q(".ctEdDescricao")) corpo.descricao = q(".ctEdDescricao").value;
+    try { await api("cartoes/atualizar", corpo); msg("msgCartoes", `Elemento ${b.dataset.id} salvo.`, "ok"); carregar(); } catch (e) { msg("msgCartoes", e.message, "erro"); }
+  });
   el.querySelectorAll(".ctPrevia").forEach(b => b.onclick = async () => {
     try { await salvarConfig(); const r = await api("cartoes/previa", { id: +b.dataset.id, formato: $("formato").value });
       $("cartaoPrevia").style.display = ""; $("cartaoPreviaImg").src = urlArquivo(r.arquivo) + "&t=" + Date.now();
-      $("cartaoPreviaTxt").textContent = `Cartão ${b.dataset.id} no instante ${fmtTempo(r.tempo)} (formato ${$("formato").value})` + (r.removido ? " — atenção: este trecho foi removido, o cartão não aparecerá." : ""); }
+      $("cartaoPreviaTxt").textContent = `Elemento ${b.dataset.id} no instante ${fmtTempo(r.tempo)} (formato ${$("formato").value}), com os demais elementos visíveis nesse momento` + (r.removido ? " — atenção: este trecho foi removido, o elemento não aparecerá." : ""); }
     catch (e) { msg("msgCartoes", e.message, "erro"); }
   });
 }
+function renderZooms(p) {
+  const el = $("zoomLista"); const lista = p.zooms || [];
+  el.innerHTML = lista.length ? "<table><thead><tr><th>#</th><th>Início</th><th>Fim</th><th>Tipo</th><th>Fator</th><th></th></tr></thead><tbody>" +
+    lista.map(z => `<tr class="${z.removido ? "removida" : ""}"><td>${z.id}</td><td>${fmtTempo(z.inicio)}</td><td>${fmtTempo(z.fim)}</td><td>${esc(z.tipo)}</td><td>${z.fator || "(perfil)"}</td><td><button class="perigo zRemover" data-id="${z.id}">remover</button></td></tr>`).join("") + "</tbody></table>" : "<p class='resumo'>Nenhum zoom.</p>";
+  el.querySelectorAll(".zRemover").forEach(b => b.onclick = async () => { try { await api("zoom/remover", { id: +b.dataset.id }); carregar(); } catch (e) { msg("msgCartoes", e.message, "erro"); } });
+}
+function renderLinhaTempo(p) {
+  const el = $("linhaTempo");
+  if (!p.transcricao) { el.innerHTML = "<p class='resumo'>Transcreva primeiro para ver a linha do tempo.</p>"; return; }
+  const dest = (p.legendas.destaques || []).map(d => d.toLowerCase());
+  const legs = p.legendas_previa || [];
+  el.innerHTML = "<table><thead><tr><th>Tempo</th><th>Fala</th><th>Legenda(s)</th><th>Destaques</th><th>Elementos</th><th>Zoom</th></tr></thead><tbody>" + p.transcricao.segmentos.map(s => {
+    const dentro = (a, b) => a < s.fim && b > s.inicio;
+    const els = (p.cartoes || []).filter(c => c.ativo !== false && dentro(c.inicio, c.fim)).map(c => `${c.tipo}${c.numero ? " " + c.numero : ""}: ${esc((c.texto || c.imagem || (c.itens || []).join(", ")).slice(0, 40))} <small>(${c.animacao})</small>`);
+    const zs = (p.zooms || []).filter(z => dentro(z.inicio, z.fim)).map(z => z.tipo);
+    const ds = dest.filter(d => (s.texto || "").toLowerCase().includes(d));
+    const nLeg = legs.filter(l => (l.segmentos || []).includes(s.id)).length;
+    return `<tr class="${s.mantido ? "" : "removida"}"><td class="mono">${fmtTempo(s.inicio)}<br>${fmtTempo(s.fim)}</td><td>${s.id}. ${esc(s.texto)}</td><td>${nLeg} legenda(s)</td><td>${esc(ds.join(", "))}</td><td>${els.join("<br>") || "—"}</td><td>${zs.join(", ") || "—"}</td></tr>`;
+  }).join("") + "</tbody></table>";
+}
+$("btnEstiloSalvar").onclick = async () => {
+  try { await api("configurar", { perfil: $("estilo").value, legendas: { destaques: $("destaques").value.split(",").map(x => x.trim()).filter(Boolean) } });
+    msg("msgEstilo", "Estilo e destaques aplicados ao projeto. Gere a prévia (seção 6) para ver o resultado.", "ok"); carregar(); } catch (e) { msg("msgEstilo", e.message, "erro"); }
+};
+$("btnSugerir").onclick = async () => {
+  try { const r = await api("sugerir", { aplicar: false }); msg("msgEstilo", r.texto, "info");
+    if (confirm("Aplicar as sugestões acima ao projeto? (tópicos numerados e palavras em destaque)\n\n" + r.texto)) { const r2 = await api("sugerir", { aplicar: true }); msg("msgEstilo", r2.texto, "ok"); carregar(); } }
+  catch (e) { msg("msgEstilo", e.message, "erro"); }
+};
+$("btnZoomAdd").onclick = async () => {
+  try { const r = await api("zoom/adicionar", { fala: $("zFala").value || null, inicio: $("zIni").value || null, fim: $("zFim").value || null, tipo: $("zTipo").value, fator: $("zFator").value || null });
+    msg("msgCartoes", `Zoom ${r.zoom.id} adicionado.`, "ok"); $("zFala").value = $("zIni").value = $("zFim").value = ""; carregar(); } catch (e) { msg("msgCartoes", e.message, "erro"); }
+};
+$("imgUpload").onchange = async () => {
+  const f = $("imgUpload").files[0]; if (!f) return;
+  try { const r = await fetch("/api/imagem/upload?nome=" + encodeURIComponent(f.name), { method: "POST", body: f }); const j = await r.json(); if (j.erro) throw new Error(j.erro);
+    msg("msgCartoes", `Imagem ${j.arquivo} enviada e selecionada.`, "ok"); await carregar(); $("ctImagem").value = j.arquivo; $("ctTipo").value = "imagem"; } catch (e) { msg("msgCartoes", e.message, "erro"); }
+};
 $("btnCartaoAdd").onclick = async () => {
   try {
     const tipo = $("ctTipo").value;
-    const corpo = { tipo, texto: $("ctTexto").value.trim(), destaque: $("ctDestaque").value.trim(), posicao: $("ctPos").value || null,
-      fala: $("ctFala").value || null, inicio: $("ctIni").value || null, fim: $("ctFim").value || null };
-    if (tipo === "chips") corpo.itens = corpo.texto;
+    const corpo = { tipo, texto: $("ctTexto").value.trim(), posicao: $("ctPos").value || null, animacao: $("ctAnim").value || null,
+      fala: $("ctFala").value || null, inicio: $("ctIni").value || null, fim: $("ctFim").value || null, palavra: $("ctPalavra").value.trim() || null,
+      duracao: $("ctDuracao").value || null, tamanho: $("ctTamanho").value || null, imagem: $("ctImagem").value || null, descricao: $("ctDescricao").value.trim() };
+    if (tipo === "topico") corpo.numero = $("ctDestaque").value.trim(); else corpo.destaque = $("ctDestaque").value.trim();
+    if (tipo === "chips" || tipo === "resumo") corpo.itens = corpo.texto;
     const r = await api("cartoes/adicionar", corpo);
-    msg("msgCartoes", `Cartão ${r.cartao.id} adicionado. Clique em “ver” para conferir como fica.`, "ok");
-    $("ctTexto").value = $("ctDestaque").value = $("ctFala").value = $("ctIni").value = $("ctFim").value = "";
+    msg("msgCartoes", `Elemento ${r.cartao.id} (${tipo}) adicionado de ${fmtTempo(r.cartao.inicio)} a ${fmtTempo(r.cartao.fim)}. Clique em “ver” para conferir.`, "ok");
+    ["ctTexto", "ctDestaque", "ctDescricao", "ctFala", "ctIni", "ctFim", "ctPalavra", "ctDuracao", "ctTamanho"].forEach(id => $(id).value = "");
     carregar();
   } catch (e) { msg("msgCartoes", e.message, "erro"); }
 };

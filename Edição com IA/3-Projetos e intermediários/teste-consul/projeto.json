@@ -1,5 +1,5 @@
 {
-  "versao": 1,
+  "versao": 2,
   "nome": "teste-consul",
   "criado_em": "2026-10-30T19:31:09",
   "origem": {
@@ -16,7 +16,7 @@
       "rotacao": 0
     }
   },
-  "perfil": "consul-sindico-reels",
+  "perfil": "explicativo-institucional",
   "transcricao": {
     "modelo": "small",
     "idioma": "pt",
@@ -718,7 +718,13 @@
   "legendas": {
     "ativas": true,
     "modo": null,
-    "posicao_percentual": null
+    "posicao_percentual": null,
+    "destaques": [
+      "balancete",
+      "parecer",
+      "assembleia",
+      "condomínio"
+    ]
   },
   "duracao_alvo": null,
   "historico": [
@@ -841,61 +847,66 @@
     {
       "quando": "2026-11-03T19:32:58",
       "acao": "exportado exemplo reels"
+    },
+    {
+      "quando": "2026-11-03T20:25:22",
+      "acao": "demonstração explicativo institucional"
+    },
+    {
+      "quando": "2026-11-03T20:28:18",
+      "acao": "destaques: ['balancete', 'parecer', 'assembleia', 'condomínio']"
+    },
+    {
+      "quando": "2026-11-03T20:28:18",
+      "acao": "elemento 5 editado"
+    },
+    {
+      "quando": "2026-11-03T20:30:08",
+      "acao": "elemento 9 adicionado (interface)"
+    },
+    {
+      "quando": "2026-11-03T20:30:09",
+      "acao": "elemento 9 editado (interface)"
+    },
+    {
+      "quando": "2026-11-03T20:30:10",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-03T20:30:16",
+      "acao": "elemento 9 editado (interface)"
+    },
+    {
+      "quando": "2026-11-03T20:30:17",
+      "acao": "cartão 9 removido (interface)"
+    },
+    {
+      "quando": "2026-11-03T20:31:06",
+      "acao": "zoom 3 adicionado (interface)"
+    },
+    {
+      "quando": "2026-11-03T20:31:07",
+      "acao": "zoom 3 removido (interface)"
+    },
+    {
+      "quando": "2026-11-03T20:33:26",
+      "acao": "exportado demo-explicativo-institucional"
     }
   ],
   "exportacoes": [
     {
-      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-16x9.mp4",
-      "formato": "16:9",
-      "qualidade": "final",
-      "duracao_prevista": 36.892,
-      "legendas": 9,
-      "trechos": 5,
-      "logo": true,
-      "titulo": true,
-      "encerramento": true,
-      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-16x9.srt",
-      "quando": "2026-10-30T20:01:00"
-    },
-    {
-      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-9x16.mp4",
+      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/demo-explicativo-institucional-9x16.mp4",
       "formato": "9:16",
       "qualidade": "final",
-      "duracao_prevista": 36.892,
-      "legendas": 13,
-      "trechos": 5,
-      "logo": true,
-      "titulo": true,
-      "encerramento": true,
-      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-9x16.srt",
-      "quando": "2026-10-30T20:01:31"
-    },
-    {
-      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.mp4",
-      "formato": "1:1",
-      "qualidade": "final",
-      "duracao_prevista": 36.892,
+      "duracao_prevista": 33.892,
       "legendas": 11,
-      "trechos": 5,
-      "logo": true,
-      "titulo": true,
-      "encerramento": true,
-      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-1x1.srt",
-      "quando": "2026-10-30T20:01:56"
-    },
-    {
-      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-reels-9x16.mp4",
-      "formato": "9:16",
-      "qualidade": "final",
-      "duracao_prevista": 32.892,
-      "legendas": 36,
       "trechos": 5,
       "logo": true,
       "titulo": false,
       "encerramento": true,
-      "cartoes": 8,
-      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-consul-reels-9x16.srt",
-      "quando": "2026-11-03T19:32:58"
+      "cartoes": 10,
+      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/demo-explicativo-institucional-9x16.srt",
+      "quando": "2026-11-03T20:33:26"
     }
   ],
   "silencios_parametros": {
@@ -906,54 +917,158 @@
     {
       "id": 1,
       "tipo": "titulo",
-      "texto": "Quais condomínios precisam de prestação de contas",
-      "inicio": 0.0,
-      "fim": 6.0,
+      "texto": "Como funciona a prestação de contas",
+      "inicio": 0.5,
+      "fim": 5.0,
       "fala": null,
       "posicao": "superior",
-      "destaque": "todo mês",
+      "destaque": "guia rápido",
       "itens": null,
-      "y": null
+      "y": null,
+      "numero": null,
+      "descricao": "",
+      "imagem": null,
+      "palavra_ancora": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "ativo": true
     },
     {
       "id": 2,
-      "tipo": "check",
-      "texto": "Balancete organizado",
-      "inicio": 12.98,
-      "fim": 18.28,
-      "fala": 3,
-      "posicao": "inferior",
-      "destaque": "",
-      "itens": null,
-      "y": null
-    },
-    {
-      "id": 3,
-      "tipo": "chips",
-      "texto": "Receitas, Despesas, Parecer",
-      "inicio": 18.0,
-      "fim": 25.0,
+      "tipo": "pergunta",
+      "texto": "Para onde vai o dinheiro do condomínio?",
+      "inicio": 5.5,
+      "fim": 12.5,
       "fala": null,
       "posicao": "superior",
       "destaque": "",
-      "itens": [
-        "Receitas",
-        "Despesas",
-        "Parecer"
-      ],
-      "y": null
+      "itens": null,
+      "y": null,
+      "numero": null,
+      "descricao": "",
+      "imagem": null,
+      "palavra_ancora": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "ativo": true
+    },
+    {
+      "id": 3,
+      "tipo": "topico",
+      "texto": "Reunir os comprovantes",
+      "inicio": 5.45,
+      "fim": 12.98,
+      "fala": 2,
+      "posicao": "centro",
+      "destaque": "",
+      "itens": null,
+      "y": null,
+      "numero": 1,
+      "descricao": "Despesas e receitas de todo mês",
+      "imagem": null,
+      "palavra_ancora": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "ativo": true
     },
     {
       "id": 4,
-      "tipo": "alerta",
-      "texto": "Aprovação só em assembleia",
+      "tipo": "topico",
+      "texto": "Organizar o balancete",
+      "inicio": 12.98,
+      "fim": 18.28,
+      "fala": 3,
+      "posicao": "centro",
+      "destaque": "",
+      "itens": null,
+      "y": null,
+      "numero": 2,
+      "descricao": "Mostra para onde foi o dinheiro",
+      "imagem": null,
+      "palavra_ancora": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "ativo": true
+    },
+    {
+      "id": 5,
+      "tipo": "palavra",
+      "texto": "balancete",
+      "inicio": 16.82,
+      "fim": 18.42,
+      "fala": 3,
+      "posicao": "centro",
+      "destaque": "",
+      "itens": null,
+      "y": 0.36,
+      "numero": null,
+      "descricao": "",
+      "imagem": null,
+      "palavra_ancora": "balancete",
+      "animacao": "subir",
+      "tamanho": null,
+      "ativo": true
+    },
+    {
+      "id": 6,
+      "tipo": "topico",
+      "texto": "Parecer do conselho fiscal",
+      "inicio": 18.28,
+      "fim": 25.38,
+      "fala": 4,
+      "posicao": "centro",
+      "destaque": "",
+      "itens": null,
+      "y": null,
+      "numero": 3,
+      "descricao": "Análise e parecer",
+      "imagem": null,
+      "palavra_ancora": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "ativo": true
+    },
+    {
+      "id": 7,
+      "tipo": "resumo",
+      "texto": "Prestação de contas em 3 passos",
       "inicio": 25.58,
       "fim": 33.46,
       "fala": 5,
-      "posicao": "inferior",
+      "posicao": "centro",
+      "destaque": "",
+      "itens": [
+        "Reunir os comprovantes",
+        "Organizar o balancete",
+        "Parecer e aprovação em assembleia"
+      ],
+      "y": null,
+      "numero": null,
+      "descricao": "",
+      "imagem": null,
+      "palavra_ancora": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "ativo": true
+    },
+    {
+      "id": 8,
+      "tipo": "imagem",
+      "texto": "",
+      "inicio": 33.92,
+      "fim": 37.2,
+      "fala": 6,
+      "posicao": "centro",
       "destaque": "",
       "itens": null,
-      "y": null
+      "y": null,
+      "numero": null,
+      "descricao": "",
+      "imagem": "/home/user/git-push-origin-main/Edição com IA/2-Identidade visual e referências/logos/logo-de-teste.png",
+      "palavra_ancora": null,
+      "animacao": "fade",
+      "tamanho": 0.6,
+      "ativo": true
     }
   ],
   "marca_dagua": {
@@ -962,10 +1077,30 @@
     "ativo": true
   },
   "assinatura": {
-    "nome": "Consul Síndico",
+    "nome": "Davidson Marques",
+    "cargo": "Consul Síndico",
     "handle": "@consulsindico",
-    "inicio": 33,
-    "fim": 37.5,
-    "ativo": true
-  }
+    "inicio": 0.5,
+    "fim": 5,
+    "ativo": true,
+    "y": 0.9
+  },
+  "zooms": [
+    {
+      "id": 1,
+      "inicio": 13.0,
+      "fim": 18.0,
+      "fator": null,
+      "tipo": "suave",
+      "ativo": true
+    },
+    {
+      "id": 2,
+      "inicio": 25.6,
+      "fim": 28.3,
+      "fator": null,
+      "tipo": "corte",
+      "ativo": true
+    }
+  ]
 }

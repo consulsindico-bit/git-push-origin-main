@@ -8,7 +8,7 @@ from pathlib import Path
 from .util import (PASTA_BRUTO, PASTA_PROJETOS, EXTENSOES_VIDEO, ErroEdicao, garantir_pastas,
                    gravar_json, info_video, ler_json, nome_seguro, sha256_arquivo)
 
-VERSAO_PROJETO = 1
+VERSAO_PROJETO = 2
 
 FORMATOS = {
     "16:9": (1920, 1080),
@@ -40,6 +40,7 @@ def projeto_novo(nome: str, origem: Path, info: dict, perfil: str) -> dict:
         "logo": {"arquivo": None, "posicao": None, "largura": None, "ativo": True},
         "legendas": {"ativas": True},
         "cartoes": [],                               # ver cartoes.py
+        "zooms": [],                                 # [{"id","inicio","fim","fator","tipo":"suave"|"corte"}]
         "marca_dagua": {"texto": "", "posicao": None, "ativo": False},
         "assinatura": {"nome": "", "handle": "", "inicio": 0, "fim": 0, "ativo": False},
         "duracao_alvo": None,
@@ -88,6 +89,18 @@ def listar_projetos() -> list[dict]:
 def carregar(identificador: str | Path) -> tuple[Path, dict]:
     pasta = pasta_projeto(identificador)
     dados = ler_json(pasta / "projeto.json")
+    versao = int(dados.get("versao", 1) or 1)
+    if versao < VERSAO_PROJETO:
+        # Cópia de segurança antes de qualquer alteração por uma versão nova da ferramenta
+        backup = pasta / f"projeto.backup-v{versao}.json"
+        if not backup.exists():
+            shutil.copy2(pasta / "projeto.json", backup)
+        dados.setdefault("cartoes", [])
+        dados.setdefault("zooms", [])
+        dados.setdefault("marca_dagua", {"texto": "", "posicao": None, "ativo": False})
+        dados.setdefault("assinatura", {"nome": "", "handle": "", "inicio": 0, "fim": 0, "ativo": False})
+        dados["versao"] = VERSAO_PROJETO
+        gravar_json(pasta / "projeto.json", dados)
     return pasta, dados
 
 
@@ -242,3 +255,17 @@ def dimensoes_formato(formato: str) -> tuple[int, int]:
     if formato not in FORMATOS:
         raise ErroEdicao(f"Formato '{formato}' inválido. Use 16:9, 9:16 ou 1:1.")
     return FORMATOS[formato]
+
+
+def adicionar_zoom(dados: dict, inicio: float, fim: float, fator: float | None = None, tipo: str = "suave") -> dict:
+    dur = duracao_original(dados)
+    inicio, fim = max(0.0, float(inicio)), min(dur, float(fim))
+    if fim <= inicio:
+        raise ErroEdicao("O zoom precisa de fim maior que início.")
+    if tipo not in ("suave", "corte"):
+        raise ErroEdicao("Tipo de zoom inválido: use 'suave' (aproxima aos poucos) ou 'corte' (aproximação imediata).")
+    lista = dados.setdefault("zooms", [])
+    item = {"id": proximo_id(lista), "inicio": round(inicio, 3), "fim": round(fim, 3),
+            "fator": float(fator) if fator else None, "tipo": tipo, "ativo": True}
+    lista.append(item)
+    return item
