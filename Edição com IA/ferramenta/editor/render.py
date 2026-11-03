@@ -261,7 +261,9 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
             n += 1
         codec = ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-profile:v", "high", "-pix_fmt", "yuv420p",
                  "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]
-    args = entradas + ["-filter_complex_script", "filtro.txt",
+    # O grafo de filtros vai direto como argumento (funciona em qualquer versão do FFmpeg;
+    # a opção -filter_complex_script foi removida nas versões 8+). O filtro.txt fica só para consulta.
+    args = entradas + ["-filter_complex", filtro_completo,
                        "-map", "[vout]", "-map", "[aout]", "-r", str(FPS_SAIDA)] + codec + [str(saida)]
     executar_ffmpeg_com_progresso(args, duracao_total, ao_progredir, descricao=qualidade, cwd=trabalho)
 

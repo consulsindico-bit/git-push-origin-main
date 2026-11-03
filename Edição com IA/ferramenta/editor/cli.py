@@ -453,7 +453,8 @@ def cmd_autoteste(args):
         saida = pasta / "teste.mp4"
         cmd = [ffmpeg_bin(), "-hide_banner", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=0x0A1A3C:s=640x360:r=30:d=2",
                "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=2",
-               "-vf", "ass=legendas.ass,format=yuv420p", "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac", "-shortest", str(saida)]
+               "-filter_complex", "[0:v]ass=legendas.ass,format=yuv420p[v];[1:a]anull[a]", "-map", "[v]", "-map", "[a]",
+               "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac", "-shortest", str(saida)]
         r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(pasta))
         if r.returncode != 0:
             imprimir("  [X] Falha ao renderizar o vídeo de teste:\n" + r.stderr.strip()[-600:])
