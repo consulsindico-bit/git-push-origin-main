@@ -46,7 +46,7 @@
 </head>
 <body>
 <header>
-  <h1>Edição com IA</h1>
+  <h1>Edição com IA <small id="versao" style="font-weight:normal;font-size:12px;opacity:.8"></small></h1>
   <div>Projeto: <select id="selProjeto"></select></div>
   <div id="resumoTopo" class="resumo" style="color:#dfe3ee"></div>
 </header>
@@ -196,6 +196,7 @@ async function carregar() {
   estado = await api("estado");
   const sp = $("selProjeto"); sp.innerHTML = "<option value=''>— escolher —</option>" + estado.projetos.map(p => `<option value="${esc(p.id)}">${esc(p.nome)} (${fmtTempo(p.duracao)})</option>`).join("");
   for (const id of ["perfilImportar", "perfil"]) { $(id).innerHTML = estado.perfis.map(p => `<option value="${esc(p.id)}">${esc(p.nome)} (${p.tipo})</option>`).join(""); }
+  $("versao").textContent = "versão " + estado.versao; $("versao").title = "código em: " + estado.codigo;
   if (estado.aviso) msg("msgImportar", estado.aviso, "erro");
   const dep = $("dependencias"); dep.style.display = estado.dependencias.length ? "" : "none";
   dep.textContent = estado.dependencias.length ? "Atenção, falta algo no computador:\n" + estado.dependencias.map(d => "• " + d).join("\n") : "";

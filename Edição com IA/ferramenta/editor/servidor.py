@@ -12,6 +12,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from . import __version__
 from . import descrever, estilos, legendas as mod_legendas, projeto as mod_projeto, render, silencios as mod_silencios
 from . import transcricao as mod_transcricao, verificar as mod_verificar
 from .util import (PASTA_BRUTO, PASTA_EXPORTADOS, PASTA_INTERFACE, PASTA_LOGOS, RAIZ, EXTENSOES_VIDEO, ErroEdicao,
@@ -216,7 +217,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _estado_completo(self) -> dict:
         saida = {"projetos": mod_projeto.listar_projetos(), "perfis": estilos.listar_perfis(),
-                 "dependencias": verificar_dependencias(), "projeto": None, "pastas": {"raiz": str(RAIZ), "bruto": str(PASTA_BRUTO), "logos": str(PASTA_LOGOS),
+                 "dependencias": verificar_dependencias(), "versao": __version__, "codigo": str(Path(__file__).resolve().parent), "projeto": None, "pastas": {"raiz": str(RAIZ), "bruto": str(PASTA_BRUTO), "logos": str(PASTA_LOGOS),
                                              "exportados": str(PASTA_EXPORTADOS)}}
         with _trava:
             saida["tarefa"] = dict(_estado["tarefa"])
@@ -476,6 +477,7 @@ def iniciar(porta: int = 8765, abrir: bool = True) -> None:
                          f"feche-a ou use: python -m editor interface --porta {porta + 1}")
     servidor.daemon_threads = True
     endereco = f"http://127.0.0.1:{porta}/"
+    print(f"Edição com IA versão {__version__} — código em: {Path(__file__).resolve().parent}", flush=True)
     print(f"Interface aberta em {endereco}  (só nesta máquina; Ctrl+C para fechar)", flush=True)
     if abrir:
         try:
