@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import descrever, estilos, legendas as mod_legendas, projeto as mod_projeto, render, silencios as mod_silencios
 from . import transcricao as mod_transcricao, verificar as mod_verificar
-from .util import (PASTA_BRUTO, PASTA_EXPORTADOS, PASTA_LOGOS, PASTA_PERFIS, PASTA_PROJETOS, RAIZ, ErroEdicao,
+from .util import (PASTA_BRUTO, PASTA_EXPORTADOS, PASTA_LOGOS, PASTA_PERFIS, PASTA_PROJETOS, RAIZ, EXTENSOES_VIDEO, ErroEdicao, escapar_filtro,
                    barra_progresso, formatar_tempo, garantir_pastas, imprimir, ler_intervalo, ler_tempo, nome_seguro)
 
 
@@ -467,6 +467,45 @@ def cmd_autoteste(args):
     imprimir("Teste final: OK")
 
 
+def cmd_referencias(args):
+    """Para cada vídeo de referência, gera uma folha com 12 quadros e um resumo (para enviar na conversa)."""
+    import subprocess
+    from .util import PASTA_IDENTIDADE, ffmpeg_bin, info_video
+    pasta = PASTA_IDENTIDADE / "referencias"
+    pasta.mkdir(parents=True, exist_ok=True)
+    videos = sorted(v for v in pasta.iterdir() if v.suffix.lower() in EXTENSOES_VIDEO)
+    if not videos:
+        imprimir(f"Nenhum vídeo em: {pasta}")
+        return
+    linhas = ["# Resumo dos vídeos de referência", ""]
+    for v in videos:
+        info = info_video(v)
+        n = 12
+        passo = max(info["duracao"] / n, 0.1)
+        saida = pasta / f"{v.stem}-quadros.jpg"
+        cmd = [ffmpeg_bin(), "-hide_banner", "-y", "-loglevel", "error", "-i", str(v),
+               "-vf", f"drawtext=fontfile='{escapar_filtro(_fonte_arquivo())}':text='%{{pts\\:hms}}':fontsize=44:fontcolor=white:box=1:boxcolor=black@0.5:x=16:y=16,fps=1/{passo:.4f},scale=480:-2,tile=4x3",
+               "-frames:v", "1", str(saida)]
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if r.returncode != 0:
+            imprimir(f"  [X] {v.name}: {r.stderr.strip()[-300:]}")
+            continue
+        formato = "vertical 9:16" if info["altura"] > info["largura"] else ("quadrado 1:1" if info["altura"] == info["largura"] else "horizontal 16:9")
+        linha = f"- {v.name}: {formatar_tempo(info['duracao'], False)}, {info['largura']}x{info['altura']} ({formato}), {info['fps']:.0f} fps"
+        linhas.append(linha)
+        imprimir(f"  [OK] {linha} -> {saida.name}")
+    (pasta / "referencias-resumo.txt").write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    imprimir(f"Folhas de quadros e resumo gravados em: {pasta}")
+    imprimir("Envie na conversa os arquivos *-quadros.jpg e o referencias-resumo.txt (são pequenos).")
+
+
+def _fonte_arquivo() -> str:
+    from .render import _fonte_drawtext
+    from .estilos import carregar_perfil
+    f = _fonte_drawtext(carregar_perfil("pessoal"))
+    return f.split("'")[1].replace("\\:", ":") if "fontfile" in f else ""
+
+
 def cmd_pastas(args):
     garantir_pastas()
     estilos.criar_perfis_iniciais()
@@ -485,6 +524,7 @@ def construir_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="comando", required=True)
 
     s = sub.add_parser("pastas", help="cria/mostra a estrutura de pastas"); s.set_defaults(fn=cmd_pastas)
+    s = sub.add_parser("referencias", help="gera folhas de quadros dos vídeos em 2-Identidade visual e referências/referencias"); s.set_defaults(fn=cmd_referencias)
     s = sub.add_parser("autoteste", help="confere FFmpeg e dependências e renderiza um clipe de 2 s"); s.set_defaults(fn=cmd_autoteste)
 
     s = sub.add_parser("importar", help="copia o vídeo para o material bruto e cria um projeto")

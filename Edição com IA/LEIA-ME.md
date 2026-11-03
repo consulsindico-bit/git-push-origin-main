@@ -64,6 +64,10 @@ python -m editor verificar aula
 python -m editor interface
 ```
 
+## Vídeos de referência (exemplos de edição)
+
+Coloque exemplos de edição que você gosta em `2-Identidade visual e referências/referencias/`. Clique em `ferramenta/referencias.bat` (ou rode `python -m editor referencias`): para cada vídeo ele gera `nome-quadros.jpg` (12 momentos com o tempo) e um `referencias-resumo.txt`. Envie essas imagens na conversa com o Claude para transformar o estilo em um perfil.
+
 ## Perfis de estilo
 
 Ficam em `2-Identidade visual e referências/perfis/*.json` e podem ser editados em qualquer editor de texto: fonte, cores, posição e tamanho das legendas, logo, cartão de título e encerramento, cor de fundo do modo “caber”.
