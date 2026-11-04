@@ -41,6 +41,16 @@
   .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:12px; }
   .resumo { font-size:13px; color:#445; }
   details summary { cursor:pointer; color:var(--azul); font-size:13px; }
+  #palco { position:relative; background:#000; border-radius:8px; overflow:hidden; user-select:none; touch-action:none; margin:0 auto; }
+  #palco img.base { position:absolute; left:0; top:0; width:100%; height:100%; }
+  #palco .el { position:absolute; cursor:grab; outline:2px dashed transparent; }
+  #palco .el:hover, #palco .el.sel { outline-color:var(--dourado); }
+  #palco .el img { width:100%; height:100%; display:block; pointer-events:none; }
+  #palco .legenda { position:absolute; left:0; right:0; text-align:center; cursor:ns-resize; white-space:pre-line; line-height:1.15; font-weight:700; }
+  #palco .pip { position:absolute; border:3px solid var(--dourado); border-radius:12%; cursor:ns-resize; box-sizing:border-box; background:rgba(0,0,0,.15); }
+  #palco .rotulo { position:absolute; left:4px; top:-18px; font-size:11px; background:var(--dourado); color:#fff; padding:1px 5px; border-radius:4px; pointer-events:none; white-space:nowrap; }
+  .palcoBarra { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0; }
+  .palcoBarra input[type=range] { flex:1 1 300px; }
   #tarefa { position:sticky; top:0; z-index:5; background:#fffbe8; border-bottom:1px solid #f0d890; padding:8px 20px; font-size:13px; display:none; }
 </style>
 </head>
@@ -228,6 +238,30 @@
   </section>
 
   <section>
+    <h2>5c. Palco: posicione os elementos <small>escolha o instante, veja o quadro como vai sair e arraste legenda, cartões, imagens, logo e marca d'água</small></h2>
+    <div class="palcoBarra">
+      <button id="palcoAnt" class="sec" title="elemento anterior">◀</button>
+      <input type="range" id="palcoTempo" min="0" max="60" step="0.1" value="0">
+      <input type="number" id="palcoTempoNum" step="0.1" min="0" style="width:90px">
+      <button id="palcoProx" class="sec" title="próximo elemento">▶</button>
+      <button id="palcoAtualizar">Mostrar quadro</button>
+    </div>
+    <div id="palcoElementos" class="resumo" style="margin-bottom:6px"></div>
+    <div id="palcoWrap" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+      <div id="palco" style="width:360px;height:640px"></div>
+      <div style="flex:1 1 220px">
+        <p class="resumo" id="palcoInfo">Clique em “Mostrar quadro”. Arraste um item para movê-lo: a posição é salva ao soltar. Logo e marca d'água encaixam no canto mais próximo. A legenda sobe e desce.</p>
+        <div id="palcoSel" style="display:none">
+          <p><b id="palcoSelNome"></b></p>
+          <button class="sec" id="palcoMenor">menor</button><button class="sec" id="palcoMaior">maior</button><button class="sec" id="palcoCentrar">centralizar</button>
+          <button class="sec" id="palcoTopo">topo</button><button class="sec" id="palcoMeio">meio</button><button class="sec" id="palcoBaixo">abaixo do rosto</button>
+        </div>
+        <div id="msgPalco"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
     <h2>6. Pré-visualizar <small>antes e depois, em baixa resolução para ser rápido</small></h2>
     <button id="btnPrevia">Gerar prévia</button>
     <div id="msgPrevia"></div>
@@ -297,7 +331,7 @@ async function carregar() {
   $("ctVideo").innerHTML = "<option value=''>—</option>" + (p.videos_apoio || []).map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("");
   $("ctSubtipo").innerHTML = Object.entries(p.subtipos_tela || {}).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
   const ro = p.rosto || {}; $("rostoInfo").textContent = ro.centro_x != null ? `rosto detectado em ${ro.quadros_com_rosto}/${ro.quadros} quadros (x ${ro.centro_x}, y ${ro.centro_y}); o zoom segue o rosto` : (ro.quadros ? "nenhum rosto detectado" : "");
-  renderCartoes(p); renderZooms(p); renderLinhaTempo(p);
+  renderCartoes(p); renderZooms(p); renderLinhaTempo(p); palcoAtualizarSlider(p);
   document.querySelectorAll(".fmt").forEach(c => c.checked = c.value === p.formato);
   const logos = await api("logos");
   $("logoArquivo").innerHTML = "<option value=''>(usar a do perfil: " + esc(p.perfil_dados.logo.arquivo || "nenhuma") + ")</option>" + logos.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
@@ -454,6 +488,105 @@ $("btnCartaoAdd").onclick = async () => {
     carregar();
   } catch (e) { msg("msgCartoes", e.message, "erro"); }
 };
+
+// ------------------------------------------------ palco (posicionamento visual)
+let palcoDados = null, palcoEscala = 1, palcoSelecionado = null;
+function palcoAtualizarSlider(p) {
+  const dur = p.origem.info.duracao; $("palcoTempo").max = dur.toFixed(1); $("palcoTempoNum").max = dur.toFixed(1);
+  const marcos = (p.cartoes || []).filter(c => c.ativo !== false).map(c => ({ t: c.inicio, id: c.id, tipo: c.tipo })).sort((a, b) => a.t - b.t);
+  $("palcoElementos").innerHTML = marcos.length ? "Ir para: " + marcos.map(m => `<button class="sec palcoIr" data-t="${m.t}" style="padding:2px 8px;margin:2px">${m.tipo} ${m.id} (${fmtTempo(m.t)})</button>`).join("") : "";
+  document.querySelectorAll(".palcoIr").forEach(b => b.onclick = () => { $("palcoTempo").value = (+b.dataset.t + 0.3).toFixed(1); $("palcoTempoNum").value = $("palcoTempo").value; mostrarPalco(); });
+}
+$("palcoTempo").oninput = () => $("palcoTempoNum").value = $("palcoTempo").value;
+$("palcoTempoNum").onchange = () => { $("palcoTempo").value = $("palcoTempoNum").value; };
+$("palcoTempo").onchange = () => mostrarPalco();
+$("palcoAtualizar").onclick = () => mostrarPalco();
+$("palcoAnt").onclick = () => saltar(-1); $("palcoProx").onclick = () => saltar(1);
+function saltar(dir) {
+  const t = +$("palcoTempo").value; const ts = [...document.querySelectorAll(".palcoIr")].map(b => +b.dataset.t + 0.3).sort((a, b) => a - b);
+  const alvo = dir > 0 ? ts.find(x => x > t + 0.05) : [...ts].reverse().find(x => x < t - 0.05);
+  if (alvo !== undefined) { $("palcoTempo").value = alvo.toFixed(1); $("palcoTempoNum").value = $("palcoTempo").value; mostrarPalco(); }
+}
+let palcoOcupado = false;
+async function mostrarPalco() {
+  if (palcoOcupado) return;
+  palcoOcupado = true;
+  try {
+    await salvarConfig();
+    const r = await api("palco", { tempo: +$("palcoTempo").value, formato: $("formato").value });
+    palcoDados = r; desenharPalco(r);
+    msg("msgPalco", r.removido ? "Este instante está num trecho removido: ele não aparece no vídeo final, mas você pode posicionar mesmo assim." : `Instante ${fmtTempo(r.tempo)} (no vídeo editado: ${fmtTempo(r.tempo_editado)}).`, r.removido ? "info" : "ok");
+  } catch (e) { msg("msgPalco", e.message, "erro"); }
+  finally { palcoOcupado = false; }
+}
+function desenharPalco(r) {
+  const palco = $("palco"); const H = 640; const W = Math.round(H * r.largura / r.altura); palcoEscala = H / r.altura;
+  palco.style.width = W + "px"; palco.style.height = H + "px"; palco.innerHTML = "";
+  const base = document.createElement("img"); base.className = "base"; base.src = urlArquivo(r.base) + "&t=" + Date.now(); base.draggable = false; palco.appendChild(base);
+  const px = v => Math.round(v * palcoEscala);
+  for (const e of r.elementos) {
+    if (!e.visivel) continue;
+    if (e.tipo === "tela") {
+      const bg = document.createElement("img"); bg.className = "base"; bg.src = urlArquivo(e.arquivo) + "&t=" + Date.now(); bg.draggable = false; palco.appendChild(bg);
+      const pip = document.createElement("div"); pip.className = "pip"; pip.style.left = px(e.pip.x) + "px"; pip.style.top = px(e.pip.y) + "px"; pip.style.width = px(e.pip.w) + "px"; pip.style.height = px(e.pip.h) + "px";
+      pip.innerHTML = '<span class="rotulo">janela do apresentador</span>';
+      arrastavel(pip, "y", async (fx, fy) => { await api("cartoes/atualizar", { id: e.id, janela_y: fy }); });
+      palco.appendChild(pip); continue;
+    }
+    const d = document.createElement("div"); d.className = "el"; d.dataset.id = e.id; d.dataset.tipo = e.tipo;
+    d.style.left = px(e.x) + "px"; d.style.top = px(e.y) + "px"; d.style.width = px(e.w) + "px"; d.style.height = px(e.h) + "px";
+    if (e.arquivo) { const im = document.createElement("img"); im.src = urlArquivo(e.arquivo) + "&t=" + Date.now(); im.draggable = false; d.appendChild(im); }
+    else { d.style.background = "rgba(120,120,120,.6)"; d.style.color = "#fff"; d.style.fontSize = "12px"; d.textContent = "vídeo de apoio"; }
+    d.insertAdjacentHTML("beforeend", `<span class="rotulo">${esc(e.tipo)} ${esc(String(e.id))}</span>`);
+    if (e.tipo === "marca_dagua") arrastavel(d, "xy", async (fx, fy) => { await api("configurar", { marca_dagua: { posicao: canto(fx, fy), ativo: true } }); });
+    else if (e.tipo === "assinatura") arrastavel(d, "y", async (fx, fy) => { await api("configurar", { assinatura: { y: fy } }); });
+    else arrastavel(d, "xy", async (fx, fy) => { await api("cartoes/atualizar", { id: e.id, y: fy, x: fx - 0.5 }); });
+    d.addEventListener("pointerdown", () => selecionar(e, d));
+    palco.appendChild(d);
+  }
+  if (r.logo) {
+    const d = document.createElement("div"); d.className = "el"; d.style.left = px(r.logo.x) + "px"; d.style.top = px(r.logo.y) + "px"; d.style.width = px(r.logo.w) + "px"; d.style.height = px(r.logo.h) + "px";
+    const im = document.createElement("img"); im.src = urlArquivo(r.logo.arquivo); im.draggable = false; d.appendChild(im); d.insertAdjacentHTML("beforeend", '<span class="rotulo">logo</span>');
+    arrastavel(d, "xy", async (fx, fy) => { await api("configurar", { logo: { posicao: canto(fx, fy) } }); }); palco.appendChild(d);
+  }
+  if (r.legenda) {
+    const l = r.legenda; const d = document.createElement("div"); d.className = "legenda";
+    d.textContent = l.texto; d.style.fontSize = px(l.tamanho_px) + "px"; d.style.fontFamily = `"${l.familia}", Arial, sans-serif`; d.style.fontStyle = l.italico ? "italic" : "normal"; d.style.color = l.cor;
+    d.style.textShadow = l.fundo ? "none" : `0 0 3px ${l.contorno}, 0 0 3px ${l.contorno}, 1px 1px 2px ${l.contorno}`;
+    if (l.fundo) { d.style.background = l.fundo + "99"; d.style.padding = "2px 8px"; d.style.left = "6%"; d.style.right = "6%"; }
+    palco.appendChild(d);
+    const h = d.offsetHeight; d.style.top = Math.round(l.posicao_percentual * H - h) + "px";
+    d.insertAdjacentHTML("beforeend", '<span class="rotulo">legenda</span>');
+    arrastavel(d, "y", async (fx, fy, el) => { const baseFrac = (el.offsetTop + el.offsetHeight) / H; await api("configurar", { legendas: { posicao_percentual: Math.round(baseFrac * 100) / 100 } }); $("legPos").value = Math.round(baseFrac * 100); }, true);
+  }
+}
+function canto(fx, fy) { return (fy < 0.5 ? "superior" : "inferior") + "-" + (fx < 0.5 ? "esquerda" : "direita"); }
+function arrastavel(el, eixo, aoSoltar, semRecarregar) {
+  let ox = 0, oy = 0, sx = 0, sy = 0, moveu = false;
+  el.addEventListener("pointerdown", ev => { ev.preventDefault(); el.setPointerCapture(ev.pointerId); sx = ev.clientX; sy = ev.clientY; ox = el.offsetLeft; oy = el.offsetTop; moveu = false; });
+  el.addEventListener("pointermove", ev => { if (!el.hasPointerCapture(ev.pointerId)) return; const dx = ev.clientX - sx, dy = ev.clientY - sy; if (Math.abs(dx) + Math.abs(dy) > 2) moveu = true;
+    if (eixo.includes("x")) el.style.left = (ox + dx) + "px"; if (eixo.includes("y")) el.style.top = (oy + dy) + "px"; });
+  el.addEventListener("pointerup", async ev => { el.releasePointerCapture(ev.pointerId); if (!moveu) return;
+    const P = $("palco"); const fx = (el.offsetLeft + el.offsetWidth / 2) / P.offsetWidth, fy = (el.offsetTop + el.offsetHeight / 2) / P.offsetHeight;
+    try { await aoSoltar(Math.min(Math.max(fx, 0), 1), Math.min(Math.max(fy, 0), 1), el); msg("msgPalco", "Posição salva.", "ok"); if (!semRecarregar) { const r = await api("palco", { tempo: +$("palcoTempo").value, formato: $("formato").value }); palcoDados = r; desenharPalco(r); } estado && carregar(); }
+    catch (e) { msg("msgPalco", e.message, "erro"); } });
+}
+function selecionar(e, d) {
+  document.querySelectorAll("#palco .el").forEach(x => x.classList.remove("sel")); d.classList.add("sel");
+  if (typeof e.id !== "number") { $("palcoSel").style.display = "none"; return; }
+  palcoSelecionado = e; $("palcoSel").style.display = ""; $("palcoSelNome").textContent = `${e.tipo} ${e.id}`;
+}
+async function ajustarSel(campos) {
+  if (!palcoSelecionado) return;
+  try { await api("cartoes/atualizar", { id: palcoSelecionado.id, ...campos }); await mostrarPalco(); carregar(); } catch (e) { msg("msgPalco", e.message, "erro"); }
+}
+function tamAtual() { const c = (estado.projeto.cartoes || []).find(x => x.id === palcoSelecionado.id); return c ? (c.tamanho || (c.tipo === "imagem" || c.tipo === "video" ? 0.8 : 1.0)) : 1.0; }
+$("palcoMenor").onclick = () => ajustarSel({ tamanho: Math.max(0.2, Math.round((tamAtual() - 0.1) * 10) / 10) });
+$("palcoMaior").onclick = () => ajustarSel({ tamanho: Math.min(2, Math.round((tamAtual() + 0.1) * 10) / 10) });
+$("palcoCentrar").onclick = () => ajustarSel({ x: 0 });
+$("palcoTopo").onclick = () => ajustarSel({ posicao: "superior", y: 0.12 });
+$("palcoMeio").onclick = () => ajustarSel({ posicao: "centro", y: 0.5 });
+$("palcoBaixo").onclick = () => ajustarSel({ posicao: "inferior", y: 0.7 });
 
 async function carregarExportados() {
   const lista = await api("exportados");

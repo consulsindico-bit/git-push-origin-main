@@ -131,6 +131,10 @@ python -m editor rosto aula --enquadrar
 python -m editor zoom aula --automatico
 ```
 
+### Palco (seção 5c)
+
+Escolha o instante na linha do tempo (ou pule de elemento em elemento) e veja o quadro como vai sair: legenda, cartões, imagens, janela do apresentador, logo e marca d'água. Arraste cada item para onde quiser; a posição é salva ao soltar. Logo e marca d'água encaixam no canto mais próximo; a legenda sobe e desce. Com um elemento selecionado, os botões "menor", "maior", "centralizar", "topo", "meio" e "abaixo do rosto" ajustam tamanho e posição.
+
 ### Ainda não implementado
 
 - Leitura automática do estilo de um vídeo de referência (os estilos são configurados nos perfis; use `referencias.bat` para mandar quadros ao Claude e transformar o estilo em perfil).

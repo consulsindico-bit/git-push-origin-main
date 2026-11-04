@@ -842,7 +842,8 @@
       "palavra_ancora": "parecer",
       "animacao": "fade",
       "tamanho": null,
-      "ativo": true
+      "ativo": true,
+      "x": 0
     },
     {
       "id": 7,
@@ -1060,6 +1061,34 @@
     },
     {
       "quando": "2026-11-03T20:55:03",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-04T00:57:46",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-04T00:57:46",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-04T00:57:52",
+      "acao": "elemento 6 editado (interface)"
+    },
+    {
+      "quando": "2026-11-04T00:57:57",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-04T00:58:33",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-04T00:58:39",
+      "acao": "elemento 6 editado (interface)"
+    },
+    {
+      "quando": "2026-11-04T00:58:44",
       "acao": "configuração alterada na interface"
     }
   ],

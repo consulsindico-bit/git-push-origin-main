@@ -439,6 +439,86 @@ def quadro(pasta: Path, dados: dict, tempo: float, formato: str | None = None) -
             "enquadramento": plano["enquadramento"]}
 
 
+def _colar(img, camada, x: int, y: int) -> None:
+    """alpha_composite que aceita posições fora do quadro (recorta a camada)."""
+    if x < 0:
+        camada = camada.crop((-x, 0, camada.width, camada.height)); x = 0
+    if y < 0:
+        camada = camada.crop((0, -y, camada.width, camada.height)); y = 0
+    if x >= img.width or y >= img.height or camada.width == 0 or camada.height == 0:
+        return
+    if x + camada.width > img.width or y + camada.height > img.height:
+        camada = camada.crop((0, 0, min(camada.width, img.width - x), min(camada.height, img.height - y)))
+    img.alpha_composite(camada, (x, y))
+
+
+def palco(pasta: Path, dados: dict, tempo: float, formato: str | None = None) -> dict:
+    """Quadro base no instante (linha do tempo original) e a lista de elementos visíveis com geometria,
+    para a tela de posicionamento da interface. Não grava nada no projeto."""
+    from .cartoes import planejar_sobreposicoes
+    from .projeto import mapear_tempo
+    perfil = perfil_do_projeto(dados)
+    formato = formato or dados.get("formato", "16:9")
+    plano = _plano(dados, perfil, formato, "final")
+    L, A = plano["largura"], plano["altura"]
+    trabalho = pasta / "trabalho"
+    trabalho.mkdir(exist_ok=True)
+    origem = caminho_origem(dados)
+    base = trabalho / "palco-base.jpg"
+    executar([ffmpeg_bin(), "-hide_banner", "-y", "-loglevel", "error", "-ss", f"{tempo:.3f}", "-i", str(origem), "-frames:v", "1",
+              "-vf", _filtro_enquadramento(dados["origem"]["info"], plano, perfil), "-q:v", "4", str(base)], "quadro do palco")
+    t_edit = mapear_tempo(dados, tempo)
+    elementos = []
+    for sp in planejar_sobreposicoes(dados, perfil, L, A, trabalho):
+        visivel = sp["fim"] is None or (t_edit is not None and sp["inicio"] <= t_edit <= sp["fim"])
+        tipo = sp.get("kind", "png")
+        item = {"id": sp["id"], "tipo": sp["tipo"], "visivel": visivel, "inicio": sp["inicio"], "fim": sp["fim"]}
+        if tipo == "tela":
+            item.update({"arquivo": sp["fundo"], "x": 0, "y": 0, "w": L, "h": A, "pip": sp["pip"], "mascara": sp["mascara"]})
+        elif tipo == "video":
+            item.update({"arquivo": None, "x": sp["x"], "y": sp["y"], "w": sp["w"], "h": sp["h"]})
+        else:
+            from PIL import Image
+            with Image.open(sp["arquivo"]) as im:
+                w, h = im.size
+            item.update({"arquivo": sp["arquivo"], "x": sp["x"], "y": sp["y"], "w": w, "h": h})
+        elementos.append(item)
+    # legenda ativa no instante
+    legenda = None
+    if plano["legendas"]:
+        from .legendas import construir_legendas, tamanho_fonte
+        cfg = perfil["legendas"]
+        for leg in construir_legendas(dados, perfil, L, A):
+            if t_edit is not None and leg["inicio"] <= t_edit <= leg["fim"]:
+                legenda = {"texto": leg["texto"]}
+                break
+        legenda = legenda or {"texto": "(sem legenda neste instante)"}
+        pos_pct = cfg.get("posicao_percentual")
+        if pos_pct is None:
+            pos_pct = {"inferior": 1 - float(cfg.get("margem_vertical", 0.10)), "centro": 0.5, "superior": float(cfg.get("margem_vertical", 0.10)) + 0.06}.get(cfg.get("posicao", "inferior"), 0.9)
+        legenda.update({"posicao_percentual": pos_pct, "tamanho_px": tamanho_fonte(perfil, L, A), "italico": bool(cfg.get("italico")),
+                        "cor": cfg.get("cor_texto", "#FFFFFF"), "contorno": cfg.get("cor_contorno", "#000000"), "fundo": cfg.get("cor_fundo"),
+                        "familia": caminho_fonte(perfil)[0]})
+    # logo
+    logo = None
+    if plano["logo"]:
+        cfg_logo = perfil["logo"]
+        from PIL import Image
+        with Image.open(plano["logo"]) as im:
+            lw, lh = im.size
+        base_g = (L * A) ** 0.5
+        w = int(base_g * float(dados.get("logo", {}).get("largura") or cfg_logo.get("largura", 0.14)))
+        h = int(lh * w / max(1, lw))
+        margem = int(L * float(cfg_logo.get("margem", 0.03)))
+        posicao = dados.get("logo", {}).get("posicao") or cfg_logo.get("posicao", "superior-direita")
+        x = L - w - margem if "direita" in posicao else margem
+        y = margem if "superior" in posicao else A - h - margem
+        logo = {"arquivo": plano["logo"], "x": x, "y": y, "w": w, "h": h, "posicao": posicao}
+    return {"base": str(base), "largura": L, "altura": A, "tempo": tempo, "tempo_editado": t_edit, "removido": t_edit is None,
+            "elementos": elementos, "legenda": legenda, "logo": logo, "formato": formato,
+            "duracao": float(dados["origem"]["info"]["duracao"])}
+
+
 def quadro_cartao(pasta: Path, dados: dict, ident: int, formato: str | None = None) -> dict:
     """Imagem de conferência: quadro do vídeo no início do cartão, já enquadrado, com o cartão e a marca d'água por cima."""
     from PIL import Image
@@ -484,7 +564,7 @@ def quadro_cartao(pasta: Path, dados: dict, ident: int, formato: str | None = No
             img.alpha_composite(caixa, (int(sp["x"]), int(sp["y"])))
         else:
             camada = Image.open(sp["arquivo"]).convert("RGBA")
-            img.alpha_composite(camada, (int(sp["x"]), int(sp["y"])))
+            _colar(img, camada, int(sp["x"]), int(sp["y"]))
     saida = trabalho / f"quadro-cartao-{ident}.jpg"
     img.convert("RGB").save(saida, quality=88)
     base.unlink(missing_ok=True)

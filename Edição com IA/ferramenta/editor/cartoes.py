@@ -711,7 +711,7 @@ def adicionar(dados: dict, tipo: str, texto: str = "", inicio: float | None = No
             "fim": round(float(fim), 3), "fala": fala, "posicao": posicao, "destaque": destaque.strip(),
             "itens": itens or None, "y": y, "numero": numero, "descricao": descricao.strip(), "imagem": imagem,
             "palavra_ancora": palavra_ancora, "animacao": animacao, "tamanho": tamanho, "ativo": True,
-            "subtipo": subtipo, "limite": limite, "video": video, "video_inicio": video_inicio}
+            "subtipo": subtipo, "limite": limite, "video": video, "video_inicio": video_inicio, "x": 0.0}
     lista.append(item)
     return item
 
@@ -775,8 +775,8 @@ def _planejar_um(c: dict, dados: dict, perfil: dict, largura: int, altura: int, 
                 info = desenhar_cartao(dict(c, _visiveis=n, itens=itens), perfil, largura, altura, pasta / f"cartao-{c['id']}-{n}.png")
                 ini = novo[0] + (n - 1) * passo
                 fim = novo[1] if n == len(itens) else novo[0] + n * passo
-                saida.append({"arquivo": info["arquivo"], "x": 0, "y": _y(altura, frac_y, info["h"], topo), "inicio": ini, "fim": fim,
-                              "animacao": "nenhuma" if n > 1 else anim, "id": c["id"], "tipo": c["tipo"]})
+                saida.append({"arquivo": info["arquivo"], "x": int(float(c.get("x") or 0) * largura), "y": _y(altura, frac_y, info["h"], topo),
+                              "inicio": ini, "fim": fim, "animacao": "nenhuma" if n > 1 else anim, "id": c["id"], "tipo": c["tipo"]})
             return
         if c["tipo"] == "tela":
             if c.get("janela_origem_y") is None:
@@ -805,12 +805,13 @@ def _planejar_um(c: dict, dados: dict, perfil: dict, largura: int, altura: int, 
             mascara.save(arq_m)
             dur = min(novo[1] - novo[0], max(0.3, vi["duracao"] - float(c.get("video_inicio") or 0)))
             saida.append({"kind": "video", "arquivo": str(caminho), "mascara": str(arq_m), "w": alvo_w, "h": alvo_h,
-                          "x": (largura - alvo_w) // 2, "y": _y(altura, frac_y, alvo_h, topo), "inicio": novo[0], "fim": novo[0] + dur,
+                          "x": (largura - alvo_w) // 2 + int(float(c.get("x") or 0) * largura), "y": _y(altura, frac_y, alvo_h, topo),
+                          "inicio": novo[0], "fim": novo[0] + dur,
                           "origem_inicio": float(c.get("video_inicio") or 0), "animacao": anim, "id": c["id"], "tipo": "video"})
             return
         info = desenhar_cartao(c, perfil, largura, altura, pasta / f"cartao-{c['id']}.png")
-        saida.append({"arquivo": info["arquivo"], "x": 0, "y": _y(altura, frac_y, info["h"], topo), "inicio": novo[0], "fim": novo[1],
-                      "animacao": anim, "id": c["id"], "tipo": c["tipo"]})
+        saida.append({"arquivo": info["arquivo"], "x": int(float(c.get("x") or 0) * largura), "y": _y(altura, frac_y, info["h"], topo),
+                      "inicio": novo[0], "fim": novo[1], "animacao": anim, "id": c["id"], "tipo": c["tipo"]})
 
 
 def _planejar_fixos(dados: dict, perfil: dict, largura: int, altura: int, pasta: Path, saida: list) -> None:

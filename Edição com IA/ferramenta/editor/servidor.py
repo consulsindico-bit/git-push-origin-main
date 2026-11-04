@@ -40,6 +40,7 @@ def verificar_dependencias() -> list[str]:
 # ---------------------------------------------------------------- estado
 
 _trava = threading.Lock()
+_trava_desenho = threading.Lock()   # desenho de elementos (palco/prévia) um de cada vez: evita PNG lido pela metade
 _estado = {
     "projeto_atual": None,          # id da pasta do projeto
     "tarefa": {"ativa": False, "nome": "", "progresso": 0.0, "mensagem": "", "erro": None, "resultado": None},
@@ -471,7 +472,7 @@ class Handler(BaseHTTPRequestHandler):
     def rota_cartoes_atualizar(self, c):
         pasta, dados = _projeto_atual()
         campos = {k: c.get(k) for k in ("texto", "destaque", "posicao", "numero", "descricao", "animacao", "ativo", "cor_fundo", "cor_texto", "subtipo", "video", "imagem")}
-        for k in ("inicio", "fim", "y", "tamanho", "limite", "video_inicio"):
+        for k in ("inicio", "fim", "y", "x", "tamanho", "limite", "video_inicio", "janela_y", "janela"):
             if c.get(k) not in (None, ""):
                 campos[k] = float(c[k])
         if c.get("itens"):
@@ -542,9 +543,15 @@ class Handler(BaseHTTPRequestHandler):
         mod_projeto.salvar(pasta, dados, acao=f"cartão {c['id']} removido (interface)")
         return self._json({"ok": True})
 
+    def rota_palco(self, c):
+        pasta, dados = _projeto_atual()
+        with _trava_desenho:
+            return self._json(render.palco(pasta, dados, float(c.get("tempo") or 0.0), formato=c.get("formato") or None))
+
     def rota_cartoes_previa(self, c):
         pasta, dados = _projeto_atual()
-        return self._json(render.quadro_cartao(pasta, dados, int(c["id"]), formato=c.get("formato") or None))
+        with _trava_desenho:
+            return self._json(render.quadro_cartao(pasta, dados, int(c["id"]), formato=c.get("formato") or None))
 
     def rota_descrever(self, c):
         pasta, dados = _projeto_atual()
