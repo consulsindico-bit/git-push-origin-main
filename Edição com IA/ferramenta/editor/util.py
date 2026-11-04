@@ -80,10 +80,16 @@ def info_video(caminho: Path) -> dict:
         ffmpeg_bin("ffprobe"), "-v", "error", "-print_format", "json",
         "-show_format", "-show_streams", str(caminho),
     ]
-    saida = subprocess.run(cmd, capture_output=True, text=True)
+    # UTF-8 explícito: no Windows o padrão (cp1252) falha com acentos nos metadados e a saída chega vazia
+    saida = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if saida.returncode != 0:
-        raise ErroEdicao(f"Não consegui ler o arquivo '{caminho.name}': {saida.stderr.strip()[:300]}")
-    dados = json.loads(saida.stdout)
+        raise ErroEdicao(f"Não consegui ler o arquivo '{caminho.name}': {(saida.stderr or '').strip()[:300]}")
+    if not saida.stdout or not saida.stdout.strip():
+        raise ErroEdicao(f"O ffprobe não devolveu informações sobre '{caminho.name}'. O arquivo pode estar incompleto ou ainda sendo gravado.")
+    try:
+        dados = json.loads(saida.stdout)
+    except json.JSONDecodeError:
+        raise ErroEdicao(f"Não consegui interpretar a resposta do ffprobe para '{caminho.name}'.")
     info = {"duracao": float(dados.get("format", {}).get("duration", 0) or 0),
             "largura": 0, "altura": 0, "fps": 30.0, "tem_video": False, "tem_audio": False,
             "rotacao": 0}

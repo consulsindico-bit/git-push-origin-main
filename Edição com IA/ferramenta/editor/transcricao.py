@@ -24,7 +24,7 @@ def extrair_audio(video: Path, destino: Path) -> Path:
     destino.parent.mkdir(parents=True, exist_ok=True)
     cmd = [ffmpeg_bin(), "-hide_banner", "-y", "-loglevel", "error", "-i", str(video),
            "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(destino)]
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode != 0:
         raise ErroEdicao("Não consegui extrair o áudio do vídeo:\n" + r.stderr.strip()[-400:])
     return destino
