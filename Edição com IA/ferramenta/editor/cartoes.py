@@ -142,8 +142,8 @@ def desenhar_cartao(cartao: dict, perfil: dict, largura: int, altura: int, desti
     base = min(largura, altura) * escala
     tipo = cartao.get("tipo", "texto")
     texto = (cartao.get("texto") or "").strip()
-    if tipo not in ("chips", "imagem", "resumo") and not texto:
-        raise ErroEdicao("O cartão precisa de um texto.")
+    if tipo not in ("chips", "imagem", "resumo", "icone", "tela", "video") and not texto:
+        raise ErroEdicao(f"O elemento do tipo '{tipo}' precisa de um texto.")
     largura_max = int(largura * 0.86)
     raio = int(base * 0.018)
     pad_x, pad_y = int(base * 0.03), int(base * 0.018)
@@ -679,6 +679,12 @@ def adicionar(dados: dict, tipo: str, texto: str = "", inicio: float | None = No
         fim = inicio + duracao
     if inicio is None or fim is None or fim <= inicio:
         raise ErroEdicao("Informe início e fim (ou a fala/palavra em que o elemento aparece).")
+    exige_texto = {"titulo": "o título", "pergunta": "a pergunta", "check": "o texto da confirmação", "alerta": "o texto do alerta",
+                   "texto": "o texto", "topico": "o nome do tópico", "palavra": "a palavra-chave", "emoji": "o emoji (ex.: 💰)"}
+    if tipo in exige_texto and not (texto or "").strip():
+        raise ErroEdicao(f"Preencha {exige_texto[tipo]} no campo Texto antes de adicionar.")
+    if tipo in ("chips", "resumo") and not [i for i in (itens or []) if i.strip()]:
+        raise ErroEdicao("Informe os itens separados por vírgula no campo Texto (ex.: Água, Limpeza, Portaria).")
     if tipo == "imagem" or (tipo == "tela" and subtipo == "imagem"):
         _caminho_imagem(imagem)
     if tipo == "video":
@@ -713,6 +719,9 @@ def adicionar(dados: dict, tipo: str, texto: str = "", inicio: float | None = No
 def atualizar(dados: dict, ident: int, **campos) -> dict:
     for c in dados.get("cartoes", []):
         if c["id"] == int(ident):
+            if "texto" in campos and campos["texto"] is not None and not str(campos["texto"]).strip() \
+                    and c["tipo"] in ("titulo", "pergunta", "check", "alerta", "texto", "topico", "palavra", "emoji"):
+                raise ErroEdicao(f"O elemento [{ident}] ({c['tipo']}) precisa de um texto; para tirá-lo do vídeo, desmarque 'Ativo' ou remova.")
             for k, v in campos.items():
                 if v is not None:
                     c[k] = v
@@ -745,6 +754,17 @@ def planejar_sobreposicoes(dados: dict, perfil: dict, largura: int, altura: int,
         novo = mapear_intervalo(dados, float(c["inicio"]), float(c["fim"]))
         if novo is None:
             continue  # elemento caiu inteiro num trecho removido
+        try:
+            _planejar_um(c, dados, perfil, largura, altura, pasta, saida, novo)
+        except ErroEdicao as e:
+            raise ErroEdicao(f"Elemento [{c['id']}] ({c['tipo']}, {c['inicio']:.1f}s): {e} "
+                             f"Corrija ou desative esse elemento na seção 5b.")
+    _planejar_fixos(dados, perfil, largura, altura, pasta, saida)
+    return saida
+
+
+def _planejar_um(c: dict, dados: dict, perfil: dict, largura: int, altura: int, pasta: Path, saida: list, novo) -> None:
+    if True:
         frac_y = float(c["y"]) if c.get("y") is not None else POSICOES.get(c.get("posicao", "inferior"), 0.74)
         topo = c.get("posicao") == "superior" and c.get("y") is None
         anim = c.get("animacao", "fade")
@@ -757,7 +777,7 @@ def planejar_sobreposicoes(dados: dict, perfil: dict, largura: int, altura: int,
                 fim = novo[1] if n == len(itens) else novo[0] + n * passo
                 saida.append({"arquivo": info["arquivo"], "x": 0, "y": _y(altura, frac_y, info["h"], topo), "inicio": ini, "fim": fim,
                               "animacao": "nenhuma" if n > 1 else anim, "id": c["id"], "tipo": c["tipo"]})
-            continue
+            return
         if c["tipo"] == "tela":
             if c.get("janela_origem_y") is None:
                 from .rosto import posicao_no_recorte
@@ -768,7 +788,7 @@ def planejar_sobreposicoes(dados: dict, perfil: dict, largura: int, altura: int,
             info = desenhar_tela(c, perfil, largura, altura, pasta / f"cartao-{c['id']}.png")
             saida.append({"kind": "tela", "fundo": info["arquivo"], "mascara": info["mascara"], "pip": info["pip"], "x": 0, "y": 0,
                           "inicio": novo[0], "fim": novo[1], "animacao": anim, "id": c["id"], "tipo": "tela"})
-            continue
+            return
         if c["tipo"] == "video":
             from .util import info_video
             caminho = _caminho_video(c.get("video"))
@@ -787,11 +807,13 @@ def planejar_sobreposicoes(dados: dict, perfil: dict, largura: int, altura: int,
             saida.append({"kind": "video", "arquivo": str(caminho), "mascara": str(arq_m), "w": alvo_w, "h": alvo_h,
                           "x": (largura - alvo_w) // 2, "y": _y(altura, frac_y, alvo_h, topo), "inicio": novo[0], "fim": novo[0] + dur,
                           "origem_inicio": float(c.get("video_inicio") or 0), "animacao": anim, "id": c["id"], "tipo": "video"})
-            continue
+            return
         info = desenhar_cartao(c, perfil, largura, altura, pasta / f"cartao-{c['id']}.png")
         saida.append({"arquivo": info["arquivo"], "x": 0, "y": _y(altura, frac_y, info["h"], topo), "inicio": novo[0], "fim": novo[1],
                       "animacao": anim, "id": c["id"], "tipo": c["tipo"]})
 
+
+def _planejar_fixos(dados: dict, perfil: dict, largura: int, altura: int, pasta: Path, saida: list) -> None:
     md = dados.get("marca_dagua") or {}
     texto_md = md.get("texto") or perfil.get("marca_dagua", {}).get("texto")
     if md.get("ativo", bool(texto_md)) and texto_md:
@@ -815,4 +837,3 @@ def planejar_sobreposicoes(dados: dict, perfil: dict, largura: int, altura: int,
             frac = float(ass.get("y") or 0.90)
             saida.append({"arquivo": info["arquivo"], "x": 0, "y": _y(altura, frac, info["h"], False), "inicio": novo[0],
                           "fim": novo[1], "animacao": ass.get("animacao", "subir"), "id": "assinatura", "tipo": "assinatura"})
-    return saida
