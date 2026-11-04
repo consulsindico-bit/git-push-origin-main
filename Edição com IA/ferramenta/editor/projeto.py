@@ -165,8 +165,22 @@ def importar(arquivo: str | Path, nome: str | None = None, perfil: str = "pessoa
 
     pasta.mkdir(parents=True, exist_ok=True)
     dados = projeto_novo(nome, destino, info, perfil)
+    dados["avisos"] = avisos_origem(info)
     salvar(pasta, dados, acao=f"importado de {origem}")
     return pasta, dados
+
+
+def avisos_origem(info: dict) -> list[str]:
+    """Avisos sobre o arquivo de origem (resolução baixa, por exemplo)."""
+    avisos = []
+    lo, ao = int(info.get("largura", 0)), int(info.get("altura", 0))
+    menor = min(lo, ao)
+    if menor and menor < 1000:
+        avisos.append(f"O vídeo de origem tem {lo}x{ao}, abaixo do ideal (1080 no lado menor). Parece uma cópia comprimida "
+                      "(WhatsApp, por exemplo). Se tiver o arquivo original da câmera ou do celular, importe-o: o resultado fica mais nítido.")
+    if info.get("fps", 30) and float(info["fps"]) < 24:
+        avisos.append(f"O vídeo de origem tem {info['fps']:.0f} quadros por segundo; o movimento pode parecer travado.")
+    return avisos
 
 
 # ---------------------------------------------------------------- linha do tempo

@@ -54,6 +54,8 @@ def _resumo(pasta: Path, dados: dict) -> None:
 def cmd_importar(args):
     pasta, dados = mod_projeto.importar(args.arquivo, nome=args.nome, perfil=args.perfil)
     imprimir(f"Importado. Cópia preservada em: {dados['origem']['caminho']}")
+    for aviso in dados.get("avisos") or []:
+        imprimir(f"⚠ {aviso}")
     imprimir(f"Projeto criado em: {pasta / 'projeto.json'}")
     _resumo(pasta, dados)
 
@@ -376,7 +378,8 @@ def cmd_cartoes(args):
                                      destaque=args.destaque or "", itens=itens, y=args.y, numero=args.numero,
                                      descricao=args.descricao or "", imagem=args.imagem, palavra_ancora=args.palavra,
                                      duracao=args.duracao, animacao=args.animacao, tamanho=args.tamanho,
-                                     subtipo=args.subtipo, limite=args.limite, video=args.video, video_inicio=args.video_inicio)
+                                     subtipo=args.subtipo, limite=args.limite, video=args.video, video_inicio=args.video_inicio,
+                                     permitir_duplicado=args.permitir_duplicado)
         mod_projeto.salvar(pasta, dados, acao=f"elemento {item['id']} ({item['tipo']}) adicionado")
         imprimir(f"Elemento [{item['id']}] {item['tipo']} de {formatar_tempo(item['inicio'])} a {formatar_tempo(item['fim'])}: "
                  f"{item['texto'] or item.get('imagem') or ', '.join(item.get('itens') or [])}")
@@ -393,6 +396,10 @@ def cmd_cartoes(args):
         mod_cartoes.atualizar(dados, args.ativar, ativo=True); mod_projeto.salvar(pasta, dados, acao=f"elemento {args.ativar} ativado")
     if args.desativar is not None:
         mod_cartoes.atualizar(dados, args.desativar, ativo=False); mod_projeto.salvar(pasta, dados, acao=f"elemento {args.desativar} desativado")
+    if args.limpar:
+        n = mod_cartoes.limpar(dados)
+        mod_projeto.salvar(pasta, dados, acao=f"elementos reiniciados ({n} removidos)")
+        imprimir(f"{n} elemento(s) removido(s). Cortes, legendas, zoom e textos foram mantidos.")
     if args.remover is not None:
         if not mod_cartoes.remover(dados, args.remover):
             raise ErroEdicao(f"Cartão [{args.remover}] não existe.")
@@ -473,6 +480,20 @@ def cmd_rosto(args):
     mod_projeto.salvar(pasta, dados, acao="rosto detectado" + (" e enquadramento ajustado" if args.enquadrar else ""))
 
 
+def cmd_validar(args):
+    from . import validar as mod_validar
+    pasta, dados = _carregar(args)
+    r = mod_validar.validar(pasta, dados, args.formato)
+    if not r["problemas"]:
+        imprimir(f"Nenhum problema encontrado no formato {r['formato']}.")
+        return
+    for p in r["problemas"]:
+        imprimir(f"  {'✗' if p['nivel'] == 'erro' else '!'} [{p['elemento']}] {formatar_tempo(p['instante'], False)}: {p['mensagem']}")
+    imprimir(f"{r['erros']} erro(s) e {r['avisos']} aviso(s) no formato {r['formato']}.")
+    if r["erros"]:
+        sys.exit(1)
+
+
 def cmd_zoom(args):
     pasta, dados = _carregar(args)
     if args.automatico:
@@ -543,7 +564,10 @@ def cmd_sugerir(args):
     imprimir("Sugestão de palavras em destaque: " + (", ".join(destaques) or "(nenhuma repetida o bastante)"))
     if args.aplicar:
         for t in topicos:
-            mod_cartoes.adicionar(dados, "topico", t["titulo"], fala=t["fala"], numero=t["numero"])
+            try:
+                mod_cartoes.adicionar(dados, "topico", t["titulo"], fala=t["fala"], numero=t["numero"])
+            except ErroEdicao as e:
+                imprimir(f"  (pulado) {e}")
         if destaques:
             cfg = dados.setdefault("legendas", {})
             cfg["destaques"] = list(dict.fromkeys((cfg.get("destaques") or []) + destaques))
@@ -827,6 +851,7 @@ def construir_parser() -> argparse.ArgumentParser:
     s.add_argument("--animacao", choices=list(mod_cartoes.ANIMACOES)); s.add_argument("--tamanho", type=float, help="escala (1 = padrão; imagem: fração da largura)")
     s.add_argument("--editar", type=int, metavar="ID"); s.add_argument("--ativar", type=int, metavar="ID"); s.add_argument("--desativar", type=int, metavar="ID")
     s.add_argument("--cor-fundo"); s.add_argument("--cor-texto")
+    s.add_argument("--limpar", action="store_true", help="remove todos os elementos (reiniciar)"); s.add_argument("--permitir-duplicado", action="store_true")
     s.add_argument("--subtipo", choices=list(mod_cartoes.SUBTIPOS_TELA), help="(tela) barra, documento, lista, imagem ou texto")
     s.add_argument("--limite", type=float, help="(tela barra) linha de referência, ex.: 80")
     s.add_argument("--video", help="(vídeo de apoio) arquivo em '2-Identidade visual e referências/videos-apoio' ou caminho")
@@ -838,6 +863,9 @@ def construir_parser() -> argparse.ArgumentParser:
     s.add_argument("--fala", type=int); s.add_argument("--fator", type=float, help="ex.: 1.12"); s.add_argument("--tipo", choices=["suave", "corte"], default="suave")
     s.add_argument("--remover", type=int, metavar="ID"); s.add_argument("--automatico", action="store_true", help="cortes rápidos: alterna aproximação a cada fala")
     s.add_argument("--minimo", type=float, default=1.5, help="duração mínima de cada trecho nos cortes automáticos"); s.set_defaults(fn=cmd_zoom)
+
+    s = sub.add_parser("validar", help="confere texto cortado, área segura, sobreposições, legenda coberta, contraste e duplicados")
+    s.add_argument("projeto"); s.add_argument("--formato", choices=list(mod_projeto.FORMATOS)); s.set_defaults(fn=cmd_validar)
 
     s = sub.add_parser("rosto", help="detecta o rosto (local) para o zoom seguir a pessoa; --enquadrar ajusta o recorte")
     s.add_argument("projeto"); s.add_argument("--enquadrar", action="store_true"); s.add_argument("--passo", type=float, default=1.0)

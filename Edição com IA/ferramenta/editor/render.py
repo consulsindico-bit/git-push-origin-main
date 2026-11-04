@@ -481,7 +481,9 @@ def palco(pasta: Path, dados: dict, tempo: float, formato: str | None = None) ->
             from PIL import Image
             with Image.open(sp["arquivo"]) as im:
                 w, h = im.size
-            item.update({"arquivo": sp["arquivo"], "x": sp["x"], "y": sp["y"], "w": w, "h": h})
+                bb = im.convert("RGBA").split()[3].getbbox()
+            item.update({"arquivo": sp["arquivo"], "x": sp["x"], "y": sp["y"], "w": w, "h": h,
+                         "conteudo": {"x": sp["x"] + bb[0], "y": sp["y"] + bb[1], "w": bb[2] - bb[0], "h": bb[3] - bb[1]} if bb else None})
         elementos.append(item)
     # legenda ativa no instante
     legenda = None
@@ -514,9 +516,10 @@ def palco(pasta: Path, dados: dict, tempo: float, formato: str | None = None) ->
         x = L - w - margem if "direita" in posicao else margem
         y = margem if "superior" in posicao else A - h - margem
         logo = {"arquivo": plano["logo"], "x": x, "y": y, "w": w, "h": h, "posicao": posicao}
+    from .validar import AREA_SEGURA
     return {"base": str(base), "largura": L, "altura": A, "tempo": tempo, "tempo_editado": t_edit, "removido": t_edit is None,
             "elementos": elementos, "legenda": legenda, "logo": logo, "formato": formato,
-            "duracao": float(dados["origem"]["info"]["duracao"])}
+            "duracao": float(dados["origem"]["info"]["duracao"]), "area_segura": AREA_SEGURA.get(formato, AREA_SEGURA["16:9"])}
 
 
 def quadro_cartao(pasta: Path, dados: dict, ident: int, formato: str | None = None) -> dict:

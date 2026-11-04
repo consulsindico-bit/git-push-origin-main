@@ -679,7 +679,7 @@ def adicionar(dados: dict, tipo: str, texto: str = "", inicio: float | None = No
               descricao: str = "", imagem: str | None = None, palavra_ancora: str | None = None,
               duracao: float | None = None, animacao: str | None = None, tamanho: float | None = None,
               subtipo: str | None = None, limite: float | None = None, video: str | None = None,
-              video_inicio: float | None = None) -> dict:
+              video_inicio: float | None = None, permitir_duplicado: bool = False) -> dict:
     if tipo not in TIPOS:
         raise ErroEdicao(f"Tipo de elemento '{tipo}' inválido. Opções: {', '.join(TIPOS)}")
     if palavra_ancora:
@@ -724,6 +724,10 @@ def adicionar(dados: dict, tipo: str, texto: str = "", inicio: float | None = No
     if animacao not in ANIMACOES:
         raise ErroEdicao(f"Animação '{animacao}' inválida. Use: {', '.join(ANIMACOES)}")
     lista = dados.setdefault("cartoes", [])
+    igual = duplicado_de(dados, tipo, texto, itens, inicio)
+    if igual is not None and not permitir_duplicado:
+        raise ErroEdicao(f"Já existe um elemento igual: [{igual}] ({tipo}, {float(inicio):.1f}s). "
+                         "Para repetir mesmo assim, marque 'permitir duplicado'; para recomeçar, use 'Reiniciar elementos'.")
     item = {"id": proximo_id(lista), "tipo": tipo, "texto": texto.strip(), "inicio": round(float(inicio), 3),
             "fim": round(float(fim), 3), "fala": fala, "posicao": posicao, "destaque": destaque.strip(),
             "itens": itens or None, "y": y, "numero": numero, "descricao": descricao.strip(), "imagem": imagem,
@@ -731,6 +735,25 @@ def adicionar(dados: dict, tipo: str, texto: str = "", inicio: float | None = No
             "subtipo": subtipo, "limite": limite, "video": video, "video_inicio": video_inicio, "x": 0.0}
     lista.append(item)
     return item
+
+
+def duplicado_de(dados: dict, tipo: str, texto: str, itens: list[str] | None, inicio: float) -> int | None:
+    """Devolve o id de um elemento ativo igual (mesmo tipo, texto/itens e instante), ou None."""
+    chave = (tipo, (texto or "").strip().lower(), ",".join(i.strip().lower() for i in (itens or [])), round(float(inicio), 0))
+    for c in dados.get("cartoes", []):
+        if not c.get("ativo", True):
+            continue
+        k = (c["tipo"], (c.get("texto") or "").strip().lower(), ",".join(i.strip().lower() for i in (c.get("itens") or [])), round(float(c["inicio"]), 0))
+        if k == chave:
+            return c["id"]
+    return None
+
+
+def limpar(dados: dict) -> int:
+    """Remove todos os elementos (cartões, imagens, telas...). Não mexe em cortes, legendas, zoom ou textos."""
+    n = len(dados.get("cartoes", []))
+    dados["cartoes"] = []
+    return n
 
 
 def atualizar(dados: dict, ident: int, **campos) -> dict:

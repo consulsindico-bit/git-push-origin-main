@@ -135,6 +135,15 @@ python -m editor zoom aula --automatico
 
 Escolha o instante na linha do tempo (ou pule de elemento em elemento) e veja o quadro como vai sair: legenda, cartões, imagens, janela do apresentador, logo e marca d'água. Arraste cada item para onde quiser; a posição é salva ao soltar. Logo e marca d'água encaixam no canto mais próximo; a legenda sobe e desce. Com um elemento selecionado, os botões "menor", "maior", "centralizar", "topo", "meio" e "abaixo do rosto" ajustam tamanho e posição.
 
+### Validação e proteções (versão 0.4)
+
+- **Validar elementos** (seção 5b, e automaticamente antes da prévia e da exportação): aponta, com número do elemento e instante, texto cortado na borda, elemento fora da área segura das redes (onde Reels, TikTok e Shorts colocam botões e textos), elementos que se cobrem no mesmo instante, elemento sobre a faixa da legenda, texto com linhas demais, contraste fraco, elementos repetidos e elementos em trechos removidos. No terminal: `python -m editor validar <projeto>`.
+- **Duplicados**: adicionar um elemento igual (mesmo tipo, texto e instante) é recusado, a menos que você marque "Permitir elemento repetido". "Sugerir tópicos" pela segunda vez pergunta se substitui ou acrescenta. **Reiniciar elementos** apaga todos os elementos (com confirmação), mantendo cortes, legendas, zoom e textos.
+- **Tamanho**: ao lado do campo aparece o que ele faz para o tipo escolhido e o valor em porcentagem; no Palco, o elemento selecionado mostra a largura que ocupa.
+- **Prévia**: progresso e etapa ao lado do botão, hora de geração e tamanho do arquivo; o player recarrega sozinho, sem versão antiga em cache.
+- **Área segura no Palco**: retângulo tracejado mostrando onde o conteúdo fica visível nas redes (pode ser desligado).
+- **Origem em baixa resolução**: ao importar um vídeo com menos de 1080 no lado menor (ex.: cópia do WhatsApp), a interface e o terminal avisam e sugerem usar o arquivo original.
+
 ### Ainda não implementado
 
 - Leitura automática do estilo de um vídeo de referência (os estilos são configurados nos perfis; use `referencias.bat` para mandar quadros ao Claude e transformar o estilo em perfil).

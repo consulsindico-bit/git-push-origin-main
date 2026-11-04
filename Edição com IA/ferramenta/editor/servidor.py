@@ -14,6 +14,7 @@ from pathlib import Path
 
 from . import __version__
 from . import cartoes as mod_cartoes
+from . import validar as mod_validar
 from . import descrever, estilos, legendas as mod_legendas, projeto as mod_projeto, render, silencios as mod_silencios
 from . import transcricao as mod_transcricao, verificar as mod_verificar
 from .util import (PASTA_BRUTO, PASTA_EXPORTADOS, PASTA_INTERFACE, PASTA_LOGOS, RAIZ, EXTENSOES_VIDEO, ErroEdicao,
@@ -465,7 +466,7 @@ class Handler(BaseHTTPRequestHandler):
                                      palavra_ancora=(c.get("palavra") or "").strip() or None, duracao=num("duracao"),
                                      animacao=c.get("animacao") or None, tamanho=num("tamanho"),
                                      subtipo=c.get("subtipo") or None, limite=num("limite"), video=c.get("video") or None,
-                                     video_inicio=num("video_inicio"))
+                                     video_inicio=num("video_inicio"), permitir_duplicado=bool(c.get("permitir_duplicado")))
         mod_projeto.salvar(pasta, dados, acao=f"elemento {item['id']} adicionado (interface)")
         return self._json({"ok": True, "cartao": item})
 
@@ -530,12 +531,27 @@ class Handler(BaseHTTPRequestHandler):
         import io, contextlib
         from . import cli as mod_cli
         pasta, dados = _projeto_atual()
+        ja_tem = [x for x in dados.get("cartoes", []) if x["tipo"] == "topico"]
+        if c.get("aplicar") and c.get("modo") == "substituir" and ja_tem:
+            dados["cartoes"] = [x for x in dados["cartoes"] if x["tipo"] != "topico"]
+            mod_projeto.salvar(pasta, dados, acao=f"tópicos anteriores removidos ({len(ja_tem)}) para substituir")
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             class A: pass
             a = A(); a.projeto = pasta.name; a.aplicar = bool(c.get("aplicar"))
             mod_cli.cmd_sugerir(a)
-        return self._json({"ok": True, "texto": buf.getvalue()})
+        return self._json({"ok": True, "texto": buf.getvalue(), "ja_tinha_topicos": len(ja_tem)})
+
+    def rota_cartoes_limpar(self, c):
+        pasta, dados = _projeto_atual()
+        n = mod_cartoes.limpar(dados)
+        mod_projeto.salvar(pasta, dados, acao=f"elementos reiniciados ({n} removidos, interface)")
+        return self._json({"ok": True, "removidos": n})
+
+    def rota_validar(self, c):
+        pasta, dados = _projeto_atual()
+        with _trava_desenho:
+            return self._json(mod_validar.validar(pasta, dados, c.get("formato") or None))
 
     def rota_cartoes_remover(self, c):
         pasta, dados = _projeto_atual()
@@ -574,9 +590,12 @@ class Handler(BaseHTTPRequestHandler):
         formato = c.get("formato") or dados.get("formato")
 
         def trabalho():
+            import datetime as _dt
             r = render.renderizar(pasta, dados, formato=formato, qualidade="previa", ao_progredir=_progresso)
             mod_projeto.salvar(pasta, dados)
             r["conferencia"] = render.verificar_saida(Path(r["arquivo"]))
+            r["quando"] = _dt.datetime.now().strftime("%H:%M:%S")
+            r["tamanho_mb"] = round(Path(r["arquivo"]).stat().st_size / 1e6, 2)
             return r
         _iniciar_tarefa("Prévia", trabalho)
         return self._json({"ok": True})

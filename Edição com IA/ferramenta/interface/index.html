@@ -48,6 +48,8 @@
   #palco .el img { width:100%; height:100%; display:block; pointer-events:none; }
   #palco .legenda { position:absolute; left:0; right:0; text-align:center; cursor:ns-resize; white-space:pre-line; line-height:1.15; font-weight:700; }
   #palco .pip { position:absolute; border:3px solid var(--dourado); border-radius:12%; cursor:ns-resize; box-sizing:border-box; background:rgba(0,0,0,.15); }
+  #palco .zona { position:absolute; border:2px dashed rgba(255,255,255,.75); pointer-events:none; box-sizing:border-box; }
+  #palco .zonaRotulo { position:absolute; color:rgba(255,255,255,.85); font-size:11px; pointer-events:none; }
   #palco .rotulo { position:absolute; left:4px; top:-18px; font-size:11px; background:var(--dourado); color:#fff; padding:1px 5px; border-radius:4px; pointer-events:none; white-space:nowrap; }
   .palcoBarra { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0; }
   .palcoBarra input[type=range] { flex:1 1 300px; }
@@ -90,6 +92,7 @@
   </section>
 
   <div id="comProjeto" style="display:none">
+  <div id="avisosOrigem" class="msg info" style="display:none;margin:0 0 12px"></div>
   <section>
     <h2>2. Descrever a edição <small>em português; o que a ferramenta não entender, peça na conversa com o Claude</small></h2>
     <textarea id="pedido" placeholder="Ex.: Faça uma versão de até 60 segundos, retire pausas longas, coloque legendas, formato vertical e mantenha a ideia principal."></textarea>
@@ -213,11 +216,14 @@
       <div><label>fim (s)</label><input type="number" id="ctFim" step="0.5" min="0"></div>
       <div><label>Posição</label><select id="ctPos"><option value="">(padrão do tipo)</option><option value="superior">Topo</option><option value="centro">Centro</option><option value="inferior">Abaixo do rosto</option></select></div>
       <div><label>Animação</label><select id="ctAnim"><option value="">(padrão)</option><option value="fade">Aparece/some suave</option><option value="subir">Sobe e aparece</option><option value="nenhuma">Nenhuma</option></select></div>
-      <div><label>Tamanho (1 = padrão; imagem: fração da largura)</label><input type="number" id="ctTamanho" step="0.1" min="0.2" max="2"></div>
+      <div><label>Tamanho</label><input type="number" id="ctTamanho" step="0.1" min="0.2" max="2" placeholder="1"><small id="ctTamanhoDica" class="resumo"></small></div>
+      <div><label><input type="checkbox" id="ctDuplicado"> Permitir elemento repetido</label></div>
     </div>
     <p class="resumo">Dicas: <b>tela cheia</b> = texto é o título e os itens vão separados por vírgula (barras: "Condôminos: 80, Outros: 20"; documento: "Nota fiscal, Valores dos condôminos, …"); <b>emoji</b> = cole o emoji no texto (ex.: 💰); <b>palavra-chave</b> = texto + campo "aparece quando esta palavra é dita".</p>
     <button id="btnCartaoAdd">Adicionar elemento</button>
     </details>
+    <div style="margin-top:8px"><button id="btnValidar" class="sec">Validar elementos</button><button id="btnLimparElementos" class="perigo">Reiniciar elementos</button></div>
+    <div id="msgValidar"></div>
     <div id="cartoesLista" style="margin-top:10px"></div>
     <div id="msgCartoes"></div>
     <div id="cartaoPrevia" style="display:none;margin-top:8px"><p class="resumo" id="cartaoPreviaTxt"></p><img class="quadro" id="cartaoPreviaImg" style="object-fit:contain;max-height:520px"></div>
@@ -245,6 +251,7 @@
       <input type="number" id="palcoTempoNum" step="0.1" min="0" style="width:90px">
       <button id="palcoProx" class="sec" title="próximo elemento">▶</button>
       <button id="palcoAtualizar">Mostrar quadro</button>
+      <label style="margin:0"><input type="checkbox" id="palcoZonas" checked> Mostrar área segura das redes</label>
     </div>
     <div id="palcoElementos" class="resumo" style="margin-bottom:6px"></div>
     <div id="palcoWrap" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
@@ -311,6 +318,7 @@ async function carregar() {
   $("comProjeto").style.display = p ? "" : "none";
   if (!p) { $("resumoTopo").textContent = "Importe um vídeo para começar."; mostrarTarefa(estado.tarefa); return; }
   sp.value = p.id;
+  const av = (p.avisos || []); const elAv = $("avisosOrigem"); elAv.style.display = av.length ? "" : "none"; elAv.innerHTML = av.map(a => "⚠ " + esc(a)).join("<br>");
   $("resumoTopo").textContent = `${p.origem.arquivo} · ${p.origem.info.largura}x${p.origem.info.altura} · original ${fmtTempo(p.origem.info.duracao)} · editado ${fmtTempo(p.duracao_editada)} · ${p.remocoes.length} remoção(ões)`;
   $("perfil").value = p.perfil; $("perfilImportar").value = p.perfil; $("formato").value = p.formato;
   $("enqModo").value = p.enquadramento.modo; $("enqCx").value = p.enquadramento.centro_x; $("enqCy").value = p.enquadramento.centro_y;
@@ -337,7 +345,7 @@ async function carregar() {
   $("logoArquivo").innerHTML = "<option value=''>(usar a do perfil: " + esc(p.perfil_dados.logo.arquivo || "nenhuma") + ")</option>" + logos.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
   $("logoArquivo").value = p.logo.arquivo || "";
   $("videoAntes").src = urlArquivo(p.origem_caminho);
-  if (p.previas.length) $("videoDepois").src = urlArquivo(p.previas[p.previas.length - 1]);
+  if (p.previas.length && !$("videoDepois").src.includes(encodeURIComponent(p.previas[p.previas.length - 1]))) $("videoDepois").src = urlArquivo(p.previas[p.previas.length - 1]) + "&t=" + Date.now();
   renderTranscricao(p); renderSilencios(p); renderCortes(p); renderLegendas(p);
   mostrarTarefa(estado.tarefa);
   carregarExportados();
@@ -445,7 +453,11 @@ $("btnEstiloSalvar").onclick = async () => {
 };
 $("btnSugerir").onclick = async () => {
   try { const r = await api("sugerir", { aplicar: false }); msg("msgEstilo", r.texto, "info");
-    if (confirm("Aplicar as sugestões acima ao projeto? (tópicos numerados e palavras em destaque)\n\n" + r.texto)) { const r2 = await api("sugerir", { aplicar: true }); msg("msgEstilo", r2.texto, "ok"); carregar(); } }
+    if (confirm("Aplicar as sugestões acima ao projeto? (tópicos numerados e palavras em destaque)\n\n" + r.texto)) {
+      let modo = "acrescentar";
+      const jaTem = (estado.projeto.cartoes || []).filter(c => c.tipo === "topico").length;
+      if (jaTem) modo = confirm(`O projeto já tem ${jaTem} tópico(s). OK = substituir pelos novos; Cancelar = acrescentar sem apagar (repetidos são pulados).`) ? "substituir" : "acrescentar";
+      const r2 = await api("sugerir", { aplicar: true, modo }); msg("msgEstilo", r2.texto, "ok"); carregar(); } }
   catch (e) { msg("msgEstilo", e.message, "erro"); }
 };
 $("btnZoomAdd").onclick = async () => {
@@ -471,12 +483,35 @@ $("imgUpload").onchange = async () => {
   try { const r = await fetch("/api/imagem/upload?nome=" + encodeURIComponent(f.name), { method: "POST", body: f }); const j = await r.json(); if (j.erro) throw new Error(j.erro);
     msg("msgCartoes", `Imagem ${j.arquivo} enviada e selecionada.`, "ok"); await carregar(); $("ctImagem").value = j.arquivo; $("ctTipo").value = "imagem"; } catch (e) { msg("msgCartoes", e.message, "erro"); }
 };
+function dicaTamanho() {
+  const t = $("ctTipo").value; const v = $("ctTamanho").value;
+  const dicas = { imagem: "fração da largura do quadro: 0,8 = 80% (padrão), 0,5 = metade", video: "fração da largura do quadro: 0,8 = 80% (padrão)",
+    chips: "escala da letra: 1 = padrão. Quando não cabem numa linha, as etiquetas quebram em até 3 linhas; acima disso a letra diminui",
+    palavra: "escala da letra: 1 = padrão; palavras longas já são reduzidas automaticamente para caber", tela: "não se aplica à tela cheia (ocupa o quadro todo)" };
+  let d = dicas[t] || "escala de letra e caixa: 1 = padrão, 0,8 = 20% menor, 1,3 = 30% maior; textos longos quebram em mais linhas";
+  if (v && t !== "tela") d += ` · agora: ${t === "imagem" || t === "video" ? Math.round(v * 100) + "% da largura" : Math.round(v * 100) + "% do padrão"}`;
+  $("ctTamanhoDica").textContent = d;
+}
+$("ctTipo").addEventListener("change", dicaTamanho); $("ctTamanho").addEventListener("input", dicaTamanho);
+$("btnLimparElementos").onclick = async () => {
+  const n = (estado.projeto.cartoes || []).length;
+  if (!confirm(`Remover todos os ${n} elementos deste projeto? Cortes, legendas, zoom e textos continuam. Esta ação não tem volta.`)) return;
+  try { const r = await api("cartoes/limpar", {}); msg("msgCartoes", `${r.removidos} elemento(s) removido(s).`, "ok"); carregar(); } catch (e) { msg("msgCartoes", e.message, "erro"); }
+};
+async function validarElementos(mostrarOk = true) {
+  const r = await api("validar", { formato: $("formato").value });
+  if (!r.problemas.length) { if (mostrarOk) msg("msgValidar", `Nenhum problema encontrado no formato ${r.formato}.`, "ok"); return r; }
+  msg("msgValidar", r.problemas.map(q => `${q.nivel === "erro" ? "✗" : "!"} [${esc(String(q.elemento))}] ${fmtTempo(q.instante)}: ${esc(q.mensagem)}`).join("\n") + `\n\n${r.erros} erro(s), ${r.avisos} aviso(s).`, r.erros ? "erro" : "info");
+  return r;
+}
+$("btnValidar").onclick = async () => { try { await salvarConfig(); await validarElementos(true); } catch (e) { msg("msgValidar", e.message, "erro"); } };
 $("btnCartaoAdd").onclick = async () => {
   try {
     const tipo = $("ctTipo").value;
     const corpo = { tipo, texto: $("ctTexto").value.trim(), posicao: $("ctPos").value || null, animacao: $("ctAnim").value || null,
       fala: $("ctFala").value || null, inicio: $("ctIni").value || null, fim: $("ctFim").value || null, palavra: $("ctPalavra").value.trim() || null,
-      duracao: $("ctDuracao").value || null, tamanho: $("ctTamanho").value || null, imagem: $("ctImagem").value || null, descricao: $("ctDescricao").value.trim() };
+      duracao: $("ctDuracao").value || null, tamanho: $("ctTamanho").value || null, imagem: $("ctImagem").value || null, descricao: $("ctDescricao").value.trim(),
+      permitir_duplicado: $("ctDuplicado").checked };
     if (tipo === "topico") corpo.numero = $("ctDestaque").value.trim(); else corpo.destaque = $("ctDestaque").value.trim();
     if (tipo === "chips" || tipo === "resumo" || tipo === "tela") corpo.itens = corpo.texto;
     if (tipo === "tela") { corpo.subtipo = $("ctSubtipo").value; corpo.limite = $("ctLimite").value || null; corpo.texto = $("ctDestaque").value.trim() || corpo.texto.split(",")[0]; if (!$("ctDestaque").value.trim()) corpo.itens = corpo.itens.split(",").slice(1).join(","); }
@@ -544,6 +579,12 @@ function desenharPalco(r) {
     d.addEventListener("pointerdown", () => selecionar(e, d));
     palco.appendChild(d);
   }
+  if ($("palcoZonas").checked && r.area_segura) {
+    const z = r.area_segura; const d = document.createElement("div"); d.className = "zona";
+    d.style.left = Math.round(W * z.esq) + "px"; d.style.top = Math.round(H * z.topo) + "px"; d.style.width = Math.round(W * (1 - z.esq - z.dir)) + "px"; d.style.height = Math.round(H * (1 - z.topo - z.base)) + "px";
+    palco.appendChild(d);
+    const l = document.createElement("div"); l.className = "zonaRotulo"; l.style.left = (Math.round(W * z.esq) + 4) + "px"; l.style.top = (Math.round(H * z.topo) + 2) + "px"; l.textContent = "área segura (fora dela as redes cobrem com botões e textos)"; palco.appendChild(l);
+  }
   if (r.logo) {
     const d = document.createElement("div"); d.className = "el"; d.style.left = px(r.logo.x) + "px"; d.style.top = px(r.logo.y) + "px"; d.style.width = px(r.logo.w) + "px"; d.style.height = px(r.logo.h) + "px";
     const im = document.createElement("img"); im.src = urlArquivo(r.logo.arquivo); im.draggable = false; d.appendChild(im); d.insertAdjacentHTML("beforeend", '<span class="rotulo">logo</span>');
@@ -563,10 +604,10 @@ function desenharPalco(r) {
 function canto(fx, fy) { return (fy < 0.5 ? "superior" : "inferior") + "-" + (fx < 0.5 ? "esquerda" : "direita"); }
 function arrastavel(el, eixo, aoSoltar, semRecarregar) {
   let ox = 0, oy = 0, sx = 0, sy = 0, moveu = false;
-  el.addEventListener("pointerdown", ev => { ev.preventDefault(); el.setPointerCapture(ev.pointerId); sx = ev.clientX; sy = ev.clientY; ox = el.offsetLeft; oy = el.offsetTop; moveu = false; });
+  el.addEventListener("pointerdown", ev => { ev.preventDefault(); try { el.setPointerCapture(ev.pointerId); } catch (_) {} sx = ev.clientX; sy = ev.clientY; ox = el.offsetLeft; oy = el.offsetTop; moveu = false; });
   el.addEventListener("pointermove", ev => { if (!el.hasPointerCapture(ev.pointerId)) return; const dx = ev.clientX - sx, dy = ev.clientY - sy; if (Math.abs(dx) + Math.abs(dy) > 2) moveu = true;
     if (eixo.includes("x")) el.style.left = (ox + dx) + "px"; if (eixo.includes("y")) el.style.top = (oy + dy) + "px"; });
-  el.addEventListener("pointerup", async ev => { el.releasePointerCapture(ev.pointerId); if (!moveu) return;
+  el.addEventListener("pointerup", async ev => { try { el.releasePointerCapture(ev.pointerId); } catch (_) {} if (!moveu) return;
     const P = $("palco"); const fx = (el.offsetLeft + el.offsetWidth / 2) / P.offsetWidth, fy = (el.offsetTop + el.offsetHeight / 2) / P.offsetHeight;
     try { await aoSoltar(Math.min(Math.max(fx, 0), 1), Math.min(Math.max(fy, 0), 1), el); msg("msgPalco", "Posição salva.", "ok"); if (!semRecarregar) { const r = await api("palco", { tempo: +$("palcoTempo").value, formato: $("formato").value }); palcoDados = r; desenharPalco(r); } estado && carregar(); }
     catch (e) { msg("msgPalco", e.message, "erro"); } });
@@ -574,7 +615,10 @@ function arrastavel(el, eixo, aoSoltar, semRecarregar) {
 function selecionar(e, d) {
   document.querySelectorAll("#palco .el").forEach(x => x.classList.remove("sel")); d.classList.add("sel");
   if (typeof e.id !== "number") { $("palcoSel").style.display = "none"; return; }
-  palcoSelecionado = e; $("palcoSel").style.display = ""; $("palcoSelNome").textContent = `${e.tipo} ${e.id}`;
+  palcoSelecionado = e; $("palcoSel").style.display = "";
+  const c = (estado.projeto.cartoes || []).find(x => x.id === e.id); const tam = c ? (c.tamanho || (c.tipo === "imagem" || c.tipo === "video" ? 0.8 : 1.0)) : 1.0;
+  const larg = e.conteudo ? Math.round(100 * e.conteudo.w / palcoDados.largura) : (e.w ? Math.round(100 * e.w / palcoDados.largura) : null);
+  $("palcoSelNome").textContent = `${e.tipo} ${e.id} · tamanho ${tam} · ocupa ${larg != null ? larg + "% da largura" : "?"}`;
 }
 async function ajustarSel(campos) {
   if (!palcoSelecionado) return;
@@ -602,6 +646,19 @@ function mostrarTarefa(t) {
   $("tarefaTexto").textContent = `${t.nome}: ${t.mensagem} (${Math.round(t.progresso * 100)}%)`;
   $("tarefaBarra").style.width = (t.progresso * 100) + "%";
   document.querySelectorAll("button").forEach(b => b.disabled = !!t.ativa);
+}
+function acompanharCom(idMsg, textoProgresso, aoTerminar) {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const t = await api("tarefa");
+      mostrarTarefa(t);
+      if (t.ativa) { msg(idMsg, textoProgresso(t), "info"); return; }
+      clearInterval(pollTimer);
+      if (t.erro) msg(idMsg, "Falhou: " + t.erro, "erro"); else { aoTerminar && aoTerminar(t.resultado); }
+      await carregar();
+    } catch (e) { clearInterval(pollTimer); msg(idMsg, e.message, "erro"); }
+  }, 1000);
 }
 function acompanhar(idMsg, aoTerminar) {
   clearInterval(pollTimer);
@@ -712,15 +769,24 @@ $("logoUpload").onchange = async () => {
 };
 
 $("btnPrevia").onclick = async () => {
-  try { await salvarConfig(); await api("previsualizar", { formato: $("formato").value }); msg("msgPrevia", "Gerando prévia…", "info");
-    acompanhar("msgPrevia", r => { msg("msgPrevia", `Prévia pronta (${r.formato}, ${r.legendas} legendas, ${r.trechos} trecho(s), duração prevista ${fmtTempo(r.duracao_prevista)}). Conferência: ${r.conferencia.ok ? "vídeo e áudio presentes" : "PROBLEMA: " + JSON.stringify(r.conferencia)}`, r.conferencia.ok ? "ok" : "erro"); $("videoDepois").src = urlArquivo(r.arquivo) + "&t=" + Date.now(); }); }
+  try { await salvarConfig();
+    const v = await validarElementos(false);
+    if (v.erros && !confirm(`O validador encontrou ${v.erros} erro(s) (texto cortado). Gerar a prévia mesmo assim?`)) return;
+    await api("previsualizar", { formato: $("formato").value }); msg("msgPrevia", "Gerando prévia… (0%)", "info");
+    const vid = $("videoDepois"); vid.removeAttribute("src"); vid.load();
+    acompanharCom("msgPrevia", t => `Gerando prévia… ${t.mensagem} (${Math.round(t.progresso * 100)}%)`, r => {
+      msg("msgPrevia", `Prévia gerada às ${r.quando} · ${r.tamanho_mb} MB · ${r.formato}, ${r.legendas} legendas, ${r.cartoes} elemento(s), ${r.trechos} trecho(s), duração ${fmtTempo(r.duracao_prevista)}. Conferência: ${r.conferencia.ok ? "vídeo e áudio presentes" : "PROBLEMA: " + JSON.stringify(r.conferencia)}`, r.conferencia.ok ? "ok" : "erro");
+      vid.src = urlArquivo(r.arquivo) + "&t=" + Date.now(); vid.load(); }); }
   catch (e) { msg("msgPrevia", e.message, "erro"); }
 };
 
 $("btnExportar").onclick = async () => {
   const formatos = [...document.querySelectorAll(".fmt:checked")].map(c => c.value);
   if (!formatos.length) return msg("msgExportar", "Marque pelo menos um formato.", "erro");
-  try { await salvarConfig(); await api("exportar", { formatos, nome: $("nomeExportar").value.trim() }); msg("msgExportar", "Exportando…", "info");
+  try { await salvarConfig();
+    const v = await validarElementos(false);
+    if ((v.erros || v.avisos) && !confirm(`O validador encontrou ${v.erros} erro(s) e ${v.avisos} aviso(s) (veja a lista na seção 5b). Exportar mesmo assim?`)) return;
+    await api("exportar", { formatos, nome: $("nomeExportar").value.trim() }); msg("msgExportar", "Exportando…", "info");
     acompanhar("msgExportar", r => msg("msgExportar", r.exportacoes.map(e => `✓ ${e.arquivo}` + (e.srt ? `\n   SRT: ${e.srt}` : "") + `\n   ${e.conferencia.ok ? `${e.conferencia.largura}x${e.conferencia.altura}, ${e.conferencia.duracao}s, vídeo e áudio ok` : "PROBLEMA: " + JSON.stringify(e.conferencia)}`).join("\n"), r.exportacoes.every(e => e.conferencia.ok) ? "ok" : "erro")); }
   catch (e) { msg("msgExportar", e.message, "erro"); }
 };
