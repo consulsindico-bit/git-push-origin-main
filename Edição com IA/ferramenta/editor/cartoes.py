@@ -195,26 +195,43 @@ def desenhar_cartao(cartao: dict, perfil: dict, largura: int, altura: int, desti
         if not itens:
             raise ErroEdicao("As etiquetas precisam de itens separados por vírgula.")
         tam = int(base * 0.034)
-        fonte = _fonte(perfil, "titulos", tam, negrito=True)
-        alt = _medir(medidor, "ÁG", fonte)[1] + 2 * pad_y
         gap = int(base * 0.015)
-        larguras = [_medir(medidor, i.upper(), fonte)[0] + 2 * pad_x for i in itens]
-        total_w = sum(larguras) + gap * (len(itens) - 1)
-        if total_w > largura_max:
-            fonte = _fonte(perfil, "titulos", max(12, int(tam * largura_max / total_w)), negrito=True)
-            larguras = [_medir(medidor, i.upper(), fonte)[0] + 2 * pad_x for i in itens]
-            total_w = sum(larguras) + gap * (len(itens) - 1)
-        img = Image.new("RGBA", (largura, alt), (0, 0, 0, 0))
+        max_linhas = 3
+        while True:
+            fonte = _fonte(perfil, "titulos", tam, negrito=True)
+            pad_c = int(tam * 0.9)
+            alt = _medir(medidor, "ÁG", fonte)[1] + int(tam * 0.9)
+            larguras = [min(_medir(medidor, i.upper(), fonte)[0] + 2 * pad_c, largura_max) for i in itens]
+            # distribui em linhas (quebra quando não cabe)
+            linhas, atual, w_atual = [], [], 0
+            for n, w in enumerate(larguras):
+                if atual and w_atual + gap + w > largura_max:
+                    linhas.append(atual); atual, w_atual = [], 0
+                atual.append(n); w_atual += (gap if len(atual) > 1 else 0) + w
+            if atual:
+                linhas.append(atual)
+            if len(linhas) <= max_linhas or tam <= 14:
+                break
+            tam = int(tam * 0.9)   # só reduz a letra se nem em 3 linhas couber
+        h = len(linhas) * alt + (len(linhas) - 1) * gap
+        img = Image.new("RGBA", (largura, h), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
-        x = (largura - total_w) // 2
         quantos = cartao.get("_visiveis", len(itens))
-        for n, (item, w) in enumerate(zip(itens, larguras)):
-            if n < quantos:
-                draw.rounded_rectangle([x, 0, x + w, alt], radius=alt // 2, fill=_rgba(cfg.get("chip_fundo", cores["primaria"]), 0.9))
-                draw.text((x + pad_x, pad_y - tam * 0.1), item.upper(), font=fonte, fill=_rgba(cfg.get("chip_texto", "#FFFFFF")))
-            x += w + gap
+        y = 0
+        for linha in linhas:
+            total_w = sum(larguras[n] for n in linha) + gap * (len(linha) - 1)
+            x = (largura - total_w) // 2
+            for n in linha:
+                w = larguras[n]
+                if n < quantos:
+                    draw.rounded_rectangle([x, y, x + w, y + alt], radius=alt // 2, fill=_rgba(cfg.get("chip_fundo", cores["primaria"]), 0.9))
+                    tw = _medir(draw, itens[n].upper(), fonte)[0]
+                    draw.text((x + max(pad_c, (w - tw) // 2), y + int(tam * 0.45) - tam * 0.1), itens[n].upper(), font=fonte,
+                              fill=_rgba(cfg.get("chip_texto", "#FFFFFF")))
+                x += w + gap
+            y += alt + gap
         img.save(destino)
-        return {"arquivo": str(destino), "w": largura, "h": alt}
+        return {"arquivo": str(destino), "w": largura, "h": h}
 
     if tipo == "topico":
         numero = str(cartao.get("numero") or "").strip()
