@@ -255,7 +255,13 @@ def executar_ffmpeg_com_progresso(args: list[str], duracao_esperada: float, ao_p
 
 
 def imprimir(msg: str = "") -> None:
-    print(msg, flush=True)
+    try:
+        print(msg, flush=True)
+    except BrokenPipeError:  # saída fechada (ex.: "| head"): encerra em silêncio
+        try:
+            sys.stdout = open(os.devnull, "w")
+        finally:
+            sys.exit(0)
 
 
 def barra_progresso(prefixo: str):

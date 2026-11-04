@@ -147,7 +147,7 @@
         "id": 2,
         "inicio": 5.45,
         "fim": 12.98,
-        "texto": "funciona a prestação de contas do condomínio. Todo mês, o síndico precisa reunir os comprovantes",
+        "texto": "funciona a prestação de contas do condominial. Todo mês, o síndico precisa reunir os comprovantes",
         "texto_original": "funciona a prestação de contas do condomínio. Ao do mês, o Cíndico precisa reunir os comprovantes",
         "confianca": 0.81,
         "incerto": false,
@@ -250,7 +250,8 @@
             "prob": 0.985
           }
         ],
-        "revisado": true
+        "revisado": true,
+        "glossario": true
       },
       {
         "id": 3,
@@ -553,7 +554,7 @@
         "id": 6,
         "inicio": 33.92,
         "fim": 37.2,
-        "texto": "compartilhe com os moradores do seu condomínio. Até a próxima!",
+        "texto": "compartilhe com os moradores do seu condominial. Até a próxima!",
         "texto_original": "Compartilhe com os moradores do seu condomínio. Até a próxima!",
         "confianca": 0.81,
         "incerto": false,
@@ -620,7 +621,8 @@
             "prob": 0.988
           }
         ],
-        "revisado": true
+        "revisado": true,
+        "glossario": true
       }
     ]
   },
@@ -691,7 +693,11 @@
   "audio": {
     "ganho_db": 0,
     "melhorar_voz": true,
-    "normalizar": true
+    "normalizar": true,
+    "ruido": "nenhuma",
+    "musica": null,
+    "musica_volume_db": -16,
+    "musica_abaixa_db": 14
   },
   "formato": "9:16",
   "enquadramento": {
@@ -1110,6 +1116,74 @@
     {
       "quando": "2026-11-04T02:07:48",
       "acao": "cartão 14 removido"
+    },
+    {
+      "quando": "2026-11-04T02:18:32",
+      "acao": "cortes inteligentes sugeridos"
+    },
+    {
+      "quando": "2026-11-04T02:18:32",
+      "acao": "organização: {'condominio': 'Residencial Sol', 'tema': 'prestacao-de-contas'}"
+    },
+    {
+      "quando": "2026-11-04T02:25:06",
+      "acao": "glossário aplicado (2 trocas)"
+    },
+    {
+      "quando": "2026-11-04T02:25:07",
+      "acao": "cortes inteligentes sugeridos"
+    },
+    {
+      "quando": "2026-11-04T02:25:09",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-04T02:27:08",
+      "acao": "elemento 1 editado (interface)"
+    },
+    {
+      "quando": "2026-11-04T02:27:10",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-04T02:27:16",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-04T02:27:23",
+      "acao": "elemento 3 editado (interface)"
+    },
+    {
+      "quando": "2026-11-04T02:27:23",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-04T02:27:30",
+      "acao": "elemento 3 editado (interface)"
+    },
+    {
+      "quando": "2026-11-04T02:27:30",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-04T02:27:37",
+      "acao": "configuração alterada na interface"
+    },
+    {
+      "quando": "2026-11-04T02:28:31",
+      "acao": "exportado (interface) /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-ui-rede-9x16.mp4"
+    },
+    {
+      "quando": "2026-11-04T02:29:10",
+      "acao": "exportado (interface) /home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-ui-rede-9x16-whatsapp.mp4"
+    },
+    {
+      "quando": "2026-11-04T02:29:57",
+      "acao": "elemento 1 editado (interface)"
+    },
+    {
+      "quando": "2026-11-04T02:30:07",
+      "acao": "elemento 1 editado"
     }
   ],
   "exportacoes": [
@@ -1126,10 +1200,69 @@
       "cartoes": 17,
       "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/demo-insights-dinamicos-9x16.srt",
       "quando": "2026-11-03T20:53:46"
+    },
+    {
+      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-whatsapp-9x16-whatsapp.mp4",
+      "formato": "9:16",
+      "qualidade": "final",
+      "rede": "whatsapp",
+      "duracao_prevista": 32.892,
+      "legendas": 46,
+      "trechos": 5,
+      "logo": false,
+      "titulo": false,
+      "encerramento": true,
+      "cartoes": 17,
+      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-whatsapp-9x16-whatsapp.srt",
+      "quando": "2026-11-04T02:16:13"
+    },
+    {
+      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-ui-rede-9x16.mp4",
+      "formato": "9:16",
+      "qualidade": "final",
+      "rede": "padrao",
+      "duracao_prevista": 32.892,
+      "legendas": 46,
+      "trechos": 5,
+      "logo": false,
+      "titulo": false,
+      "encerramento": true,
+      "cartoes": 17,
+      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-ui-rede-9x16.srt",
+      "quando": "2026-11-04T02:28:31",
+      "conferencia": {
+        "ok": true,
+        "duracao": 33.0,
+        "largura": 1080,
+        "altura": 1920,
+        "tem_video": true,
+        "tem_audio": true,
+        "tamanho_mb": 2.6
+      }
+    },
+    {
+      "arquivo": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-ui-rede-9x16-whatsapp.mp4",
+      "formato": "9:16",
+      "qualidade": "final",
+      "rede": "whatsapp",
+      "duracao_prevista": 32.892,
+      "legendas": 46,
+      "trechos": 5,
+      "logo": false,
+      "titulo": false,
+      "encerramento": true,
+      "cartoes": 17,
+      "srt": "/home/user/git-push-origin-main/Edição com IA/4-Vídeos exportados/teste-ui-rede-9x16-whatsapp.srt",
+      "quando": "2026-11-04T02:29:10"
     }
   ],
   "silencios_parametros": {
     "duracao_minima": 0.7,
     "limiar_db": -35.0
+  },
+  "vicios_sugeridos": [],
+  "organizacao": {
+    "condominio": "",
+    "tema": ""
   }
 }

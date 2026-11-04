@@ -104,12 +104,82 @@ def carregar(identificador: str | Path) -> tuple[Path, dict]:
     return pasta, dados
 
 
+MAX_VERSOES = 60
+
+
 def salvar(pasta: Path, dados: dict, acao: str | None = None) -> None:
+    """Grava o projeto. Antes, guarda a versão anterior em 'versoes/' (para desfazer e para o histórico)."""
+    atual = pasta / "projeto.json"
+    if atual.exists():
+        _guardar_versao(pasta, acao or "alteração")
     if acao:
         dados.setdefault("historico", []).append(
             {"quando": dt.datetime.now().isoformat(timespec="seconds"), "acao": acao})
         dados["historico"] = dados["historico"][-200:]
+    gravar_json(atual, dados)
+    # qualquer alteração nova invalida o "refazer"
+    for r in (pasta / "versoes" / "refazer").glob("*.json") if (pasta / "versoes" / "refazer").exists() else []:
+        r.unlink()
+
+
+def _guardar_versao(pasta: Path, acao: str) -> Path:
+    versoes = pasta / "versoes"
+    versoes.mkdir(exist_ok=True)
+    existentes = sorted(versoes.glob("*.json"))
+    n = int(existentes[-1].name.split("-", 1)[0]) + 1 if existentes else 1
+    destino = versoes / f"{n:05d}-{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}-{nome_seguro(acao)[:40]}.json"
+    shutil.copy2(pasta / "projeto.json", destino)
+    for velho in existentes[:-MAX_VERSOES]:
+        velho.unlink()
+    return destino
+
+
+def listar_versoes(pasta: Path) -> list[dict]:
+    versoes = pasta / "versoes"
+    saida = []
+    for arq in sorted(versoes.glob("*.json"), reverse=True) if versoes.exists() else []:
+        partes = arq.stem.split("-", 3)
+        quando = f"{partes[1][6:8]}/{partes[1][4:6]} {partes[2][:2]}:{partes[2][2:4]}:{partes[2][4:6]}" if len(partes) >= 3 else ""
+        saida.append({"arquivo": arq.name, "numero": int(partes[0]), "quando": quando,
+                      "acao": (partes[3] if len(partes) > 3 else "").replace("-", " ")})
+    return saida
+
+
+def desfazer(pasta: Path) -> dict:
+    """Volta para a versão anterior. A versão atual vai para 'refazer'."""
+    versoes = sorted((pasta / "versoes").glob("*.json")) if (pasta / "versoes").exists() else []
+    if not versoes:
+        raise ErroEdicao("Não há alteração anterior para desfazer.")
+    ultima = versoes[-1]
+    refazer = pasta / "versoes" / "refazer"
+    refazer.mkdir(exist_ok=True)
+    shutil.copy2(pasta / "projeto.json", refazer / ultima.name)
+    dados = ler_json(ultima)
     gravar_json(pasta / "projeto.json", dados)
+    ultima.unlink()
+    return dados
+
+
+def refazer(pasta: Path) -> dict:
+    refazer_dir = pasta / "versoes" / "refazer"
+    itens = sorted(refazer_dir.glob("*.json")) if refazer_dir.exists() else []
+    if not itens:
+        raise ErroEdicao("Não há alteração para refazer.")
+    alvo = itens[-1]
+    _guardar_versao(pasta, "antes de refazer")
+    dados = ler_json(alvo)
+    gravar_json(pasta / "projeto.json", dados)
+    alvo.unlink()
+    return dados
+
+
+def restaurar_versao(pasta: Path, nome_arquivo: str) -> dict:
+    arq = pasta / "versoes" / Path(nome_arquivo).name
+    if not arq.exists():
+        raise ErroEdicao(f"Versão '{nome_arquivo}' não encontrada.")
+    dados = ler_json(arq)
+    salvar(pasta, dados, acao=f"restaurada a versão {arq.name.split('-', 1)[0]}")
+    return dados
 
 
 def caminho_origem(dados: dict) -> Path:

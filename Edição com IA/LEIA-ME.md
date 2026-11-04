@@ -144,6 +144,24 @@ Escolha o instante na linha do tempo (ou pule de elemento em elemento) e veja o 
 - **Área segura no Palco**: retângulo tracejado mostrando onde o conteúdo fica visível nas redes (pode ser desligado).
 - **Origem em baixa resolução**: ao importar um vídeo com menos de 1080 no lado menor (ex.: cópia do WhatsApp), a interface e o terminal avisam e sugerem usar o arquivo original.
 
+### Edição do dia a dia (versão 0.5, Prioridade 2 do plano)
+
+- **Desfazer, refazer e histórico de versões**: botões ↶ ↷ no cabeçalho e painel "Histórico" com todas as versões guardadas (até 60 por projeto, na pasta `versoes` do projeto). Cada alteração guarda a versão anterior; qualquer uma pode ser restaurada. Terminal: `python -m editor historico <projeto> --desfazer | --refazer | --restaurar ARQUIVO`.
+- **Modo guiado** (caixa no cabeçalho): mostra uma etapa de cada vez (Importar, Transcrever, Revisar texto, Silêncios e cortes, Estilo e elementos, Prévia, Exportar), com o que já foi feito, o que falta e botões Anterior/Próximo. Desmarque para ver tudo numa rolagem só.
+- **Linha do tempo arrastável** (seção 5d): faixas de falas, remoções, elementos, zoom e assinatura. Arraste para mover, puxe as bordas para mudar início e fim, clique para abrir o instante no Palco. Escala ajustável.
+- **Prévia ao vivo no Palco**: com um elemento selecionado, o campo "Texto" atualiza o quadro enquanto você digita; salvar na tabela também redesenha o Palco.
+
+### Acabamento profissional (versão 0.5, Prioridade 3 do plano)
+
+- **Limpeza de áudio** (seção 5): redução de ruído em três níveis (gravação em carro, rua), nivelamento da voz (já existia) e **trilha de fundo** que abaixa sozinha quando você fala (ducking). Envie a música pela interface ou coloque em `2-Identidade visual e referências/musicas`. Terminal: `python -m editor audio <projeto> --ruido media --musica trilha.mp3 --musica-volume -18 --musica-abaixa 12`.
+- **Glossário de legendas**: `2-Identidade visual e referências/glossario.txt`, uma regra por linha (`cindico | sindico => síndico`). Aplicado automaticamente após transcrever; editável na seção 3. Já vem com os termos do setor (síndico, inadimplência, cota condominial, AGO/AGE, Consul Síndico...).
+- **Cortes inteligentes** (seção 4): sugere remover vícios de fala ("é...", "né", "hum"), palavras repetidas ("o o") e frases ditas duas vezes; você marca e aplica. Terminal: `python -m editor vicios <projeto> [--aplicar --ids 1,3]`.
+- **Enquadramento que acompanha o rosto**: em "Enquadramento", a opção "Recortar seguindo o rosto" faz o recorte 9:16 seguir a pessoa quando ela se mexe (exige "Detectar rosto" antes). Terminal: `python -m editor formato <projeto> 9:16 --modo seguir`.
+- **Exportação por rede e capa** (seção 7): Reels/Stories, TikTok, Shorts, YouTube, feed quadrado e WhatsApp (arquivo leve, 720p), com tamanho e taxa adequados, todos de uma vez na mesma fila; opcionalmente uma **capa** (miniatura JPG) com o quadro escolhido e o título. Terminal: `python -m editor exportar <projeto> --rede reels tiktok whatsapp` e `python -m editor capa <projeto> --tempo 5 --texto "..."`.
+- **Receitas por tipo de vídeo** (seção 5b): salve o projeto atual como receita (estilo, elementos com posições e animações, assinatura, marca d'água, áudio) e aplique em um vídeo novo; os elementos entram ancorados no início, no fim ou na fala correspondente, e você só troca os textos. Terminal: `python -m editor receitas <projeto> --salvar aviso-condominio` e `--aplicar aviso-condominio`.
+- **Fila de exportação em lote**: formatos e redes marcados saem numa só execução.
+- **Organização dos exportados**: campos "Condomínio" e "Tema" (seção 5) nomeiam os arquivos como `condominio-tema-data`; na lista da seção 7 dá para arquivar (subpasta `arquivo`) ou apagar.
+
 ### Ainda não implementado
 
 - Leitura automática do estilo de um vídeo de referência (os estilos são configurados nos perfis; use `referencias.bat` para mandar quadros ao Claude e transformar o estilo em perfil).

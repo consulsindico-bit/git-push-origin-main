@@ -1,0 +1,371 @@
+{
+  "nome": "demo insights",
+  "descricao": "teste de receita",
+  "criada_em": "2026-11-04T02:16:14",
+  "perfil": "insights-dinamicos",
+  "formato": "9:16",
+  "enquadramento_modo": "seguir",
+  "legendas": {
+    "ativas": true,
+    "destaques": [
+      "balancete",
+      "dinheiro",
+      "parecer"
+    ],
+    "modo": null,
+    "posicao_percentual": null
+  },
+  "audio": {
+    "ganho_db": 0,
+    "melhorar_voz": true,
+    "normalizar": true,
+    "ruido": "media",
+    "musica": "trilha-de-teste.m4a",
+    "musica_volume_db": -16,
+    "musica_abaixa_db": 14
+  },
+  "marca_dagua": {
+    "texto": "@consulsindico",
+    "posicao": "superior-direita",
+    "ativo": true
+  },
+  "assinatura": {
+    "nome": "Davidson Marques",
+    "cargo": "Consul Síndico",
+    "handle": "@consulsindico",
+    "inicio": 33.9,
+    "fim": 37.2,
+    "ativo": true,
+    "inicio_rel": {
+      "ancora": "fim",
+      "desloc": 3.68
+    },
+    "duracao": 3.3
+  },
+  "titulo": {
+    "texto": "",
+    "subtitulo": "",
+    "duracao": null
+  },
+  "encerramento": {
+    "texto": "",
+    "duracao": null,
+    "ativo": true
+  },
+  "logo": {
+    "arquivo": null,
+    "posicao": "superior-esquerda",
+    "largura": null,
+    "ativo": true
+  },
+  "zoom_automatico": false,
+  "elementos": [
+    {
+      "tipo": "titulo",
+      "posicao": "superior",
+      "y": null,
+      "x": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "subtipo": null,
+      "limite": null,
+      "numero": null,
+      "destaque": "explicada em 30 segundos",
+      "descricao": "",
+      "texto": "Prestação de contas",
+      "itens": null,
+      "imagem": null,
+      "video": null,
+      "inicio": {
+        "ancora": "inicio",
+        "desloc": 0.3
+      },
+      "duracao": 4.2
+    },
+    {
+      "tipo": "palavra",
+      "posicao": "centro",
+      "y": 0.38,
+      "x": null,
+      "animacao": "subir",
+      "tamanho": null,
+      "subtipo": null,
+      "limite": null,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "comprovantes",
+      "itens": null,
+      "imagem": null,
+      "video": null,
+      "inicio": {
+        "ancora": "fala",
+        "fala": 2,
+        "desloc": 6.99
+      },
+      "duracao": 1.5
+    },
+    {
+      "tipo": "chips",
+      "posicao": "superior",
+      "y": null,
+      "x": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "subtipo": null,
+      "limite": null,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "",
+      "itens": [
+        "Despesas",
+        "Receitas",
+        "Balancete"
+      ],
+      "imagem": null,
+      "video": null,
+      "inicio": {
+        "ancora": "fala",
+        "fala": 2,
+        "desloc": 7.53
+      },
+      "duracao": 5.3
+    },
+    {
+      "tipo": "palavra",
+      "posicao": "centro",
+      "y": 0.38,
+      "x": null,
+      "animacao": "subir",
+      "tamanho": null,
+      "subtipo": null,
+      "limite": null,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "balancete",
+      "itens": null,
+      "imagem": null,
+      "video": null,
+      "inicio": {
+        "ancora": "fala",
+        "fala": 3,
+        "desloc": 3.84
+      },
+      "duracao": 1.6
+    },
+    {
+      "tipo": "imagem",
+      "posicao": "centro",
+      "y": null,
+      "x": null,
+      "animacao": "fade",
+      "tamanho": 0.7,
+      "subtipo": null,
+      "limite": null,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "",
+      "itens": null,
+      "imagem": "/home/user/git-push-origin-main/Edição com IA/2-Identidade visual e referências/logos/logo-de-teste.png",
+      "video": null,
+      "inicio": {
+        "ancora": "fala",
+        "fala": 4,
+        "desloc": 0.54
+      },
+      "duracao": 2.5
+    },
+    {
+      "tipo": "alerta",
+      "posicao": "inferior",
+      "y": null,
+      "x": 0,
+      "animacao": "fade",
+      "tamanho": null,
+      "subtipo": null,
+      "limite": null,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "Conselho fiscal emite parecer",
+      "itens": null,
+      "imagem": null,
+      "video": null,
+      "inicio": {
+        "ancora": "fala",
+        "fala": 4,
+        "desloc": 5.3
+      },
+      "duracao": 2.5
+    },
+    {
+      "tipo": "palavra",
+      "posicao": "centro",
+      "y": 0.38,
+      "x": null,
+      "animacao": "subir",
+      "tamanho": null,
+      "subtipo": null,
+      "limite": null,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "assembleia",
+      "itens": null,
+      "imagem": null,
+      "video": null,
+      "inicio": {
+        "ancora": "fala",
+        "fala": 4,
+        "desloc": 6.6
+      },
+      "duracao": 1.5
+    },
+    {
+      "tipo": "check",
+      "posicao": "inferior",
+      "y": null,
+      "x": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "subtipo": null,
+      "limite": null,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "Contas aprovadas",
+      "itens": null,
+      "imagem": null,
+      "video": null,
+      "inicio": {
+        "ancora": "fala",
+        "fala": 5,
+        "desloc": 0.6
+      },
+      "duracao": 2.5
+    },
+    {
+      "tipo": "tela",
+      "posicao": "centro",
+      "y": null,
+      "x": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "subtipo": "barra",
+      "limite": 80,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "Receitas do condomínio",
+      "itens": [
+        "Condôminos: 80",
+        "Outras receitas: 20"
+      ],
+      "imagem": null,
+      "video": null,
+      "inicio": {
+        "ancora": "inicio",
+        "desloc": 5.45
+      },
+      "duracao": 7.53
+    },
+    {
+      "tipo": "tela",
+      "posicao": "centro",
+      "y": null,
+      "x": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "subtipo": "documento",
+      "limite": null,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "Nota fiscal",
+      "itens": [
+        "Nota fiscal",
+        "Valores dos condôminos",
+        "Serão obrigatórios"
+      ],
+      "imagem": null,
+      "video": null,
+      "inicio": {
+        "ancora": "fala",
+        "fala": 2,
+        "desloc": 7.53
+      },
+      "duracao": 5.3
+    },
+    {
+      "tipo": "video",
+      "posicao": "centro",
+      "y": null,
+      "x": null,
+      "animacao": "fade",
+      "tamanho": 0.8,
+      "subtipo": null,
+      "limite": null,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "",
+      "itens": null,
+      "imagem": null,
+      "video": "clipe-de-teste.mp4",
+      "inicio": {
+        "ancora": "fala",
+        "fala": 3,
+        "desloc": 5.3
+      },
+      "duracao": 7.1
+    },
+    {
+      "tipo": "emoji",
+      "posicao": "centro",
+      "y": null,
+      "x": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "subtipo": null,
+      "limite": null,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "💰",
+      "itens": null,
+      "imagem": null,
+      "video": null,
+      "inicio": {
+        "ancora": "fala",
+        "fala": 5,
+        "desloc": 0.6
+      },
+      "duracao": 2.0
+    },
+    {
+      "tipo": "icone",
+      "posicao": "centro",
+      "y": null,
+      "x": null,
+      "animacao": "fade",
+      "tamanho": null,
+      "subtipo": null,
+      "limite": null,
+      "numero": null,
+      "destaque": "",
+      "descricao": "",
+      "texto": "icone-teste",
+      "itens": null,
+      "imagem": "icone-teste.png",
+      "video": null,
+      "inicio": {
+        "ancora": "fim",
+        "desloc": 3.66
+      },
+      "duracao": 3.28
+    }
+  ]
+}

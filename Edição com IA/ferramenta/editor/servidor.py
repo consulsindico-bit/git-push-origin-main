@@ -15,6 +15,7 @@ from pathlib import Path
 from . import __version__
 from . import cartoes as mod_cartoes
 from . import validar as mod_validar
+from . import glossario as mod_glossario, vicios as mod_vicios, receitas as mod_receitas
 from . import descrever, estilos, legendas as mod_legendas, projeto as mod_projeto, render, silencios as mod_silencios
 from . import transcricao as mod_transcricao, verificar as mod_verificar
 from .util import (PASTA_BRUTO, PASTA_EXPORTADOS, PASTA_INTERFACE, PASTA_LOGOS, RAIZ, EXTENSOES_VIDEO, ErroEdicao,
@@ -90,12 +91,14 @@ def _projeto_atual() -> tuple[Path, dict]:
 def _dados_projeto_para_tela(pasta: Path, dados: dict) -> dict:
     perfil = estilos.perfil_do_projeto(dados)
     saida = dict(dados)
+    saida["_pasta"] = str(pasta)
     saida["id"] = pasta.name
     saida["pasta"] = str(pasta)
     saida["duracao_editada"] = round(mod_projeto.duracao_editada(dados), 3)
     saida["trechos_mantidos"] = mod_projeto.trechos_mantidos(dados)
     saida["logo_em_uso"] = str(estilos.caminho_logo(perfil, dados) or "")
     saida["perfil_dados"] = perfil
+    saida["etapas"] = _etapas(dados)
     saida["tipos_cartao"] = mod_cartoes.TIPOS
     saida["animacoes"] = mod_cartoes.ANIMACOES
     saida["subtipos_tela"] = mod_cartoes.SUBTIPOS_TELA
@@ -109,6 +112,11 @@ def _dados_projeto_para_tela(pasta: Path, dados: dict) -> dict:
         z["removido"] = mod_projeto.mapear_intervalo(dados, z["inicio"], z["fim"]) is None
     mod_cartoes.PASTA_IMAGENS.mkdir(parents=True, exist_ok=True)
     saida["imagens"] = [p.name for p in sorted(mod_cartoes.PASTA_IMAGENS.iterdir()) if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")]
+    render.PASTA_MUSICAS.mkdir(parents=True, exist_ok=True)
+    saida["musicas"] = [p.name for p in sorted(render.PASTA_MUSICAS.iterdir()) if p.suffix.lower() in (".mp3", ".m4a", ".aac", ".wav", ".ogg", ".flac")]
+    saida["redes"] = {k: v["nome"] for k, v in render.REDES.items()}
+    saida["receitas"] = mod_receitas.listar()
+    saida["vicios_sugeridos"] = dados.get("vicios_sugeridos") or []
     if dados.get("transcricao"):
         for seg in saida["transcricao"]["segmentos"]:
             seg["texto_marcado"] = mod_transcricao.texto_com_marcas(seg)
@@ -121,6 +129,25 @@ def _dados_projeto_para_tela(pasta: Path, dados: dict) -> dict:
     saida["previas"] = [str(p) for p in previas]
     saida["origem_caminho"] = str(mod_projeto.caminho_origem(dados)) if Path(dados["origem"]["caminho"]).exists() else ""
     return saida
+
+
+def _etapas(dados: dict) -> list[dict]:
+    """Situação de cada etapa para o assistente passo a passo."""
+    t = dados.get("transcricao")
+    incertos = [s for s in (t or {}).get("segmentos", []) if s.get("incerto") and not s.get("revisado")]
+    revisados = any(s.get("revisado") for s in (t or {}).get("segmentos", []))
+    return [
+        {"id": "importar", "nome": "Importar", "feito": True, "detalhe": dados["origem"]["arquivo"]},
+        {"id": "transcrever", "nome": "Transcrever", "feito": bool(t), "detalhe": f"{len(t['segmentos'])} trechos" if t else "ainda não transcrito"},
+        {"id": "revisar", "nome": "Revisar texto", "feito": bool(t) and not incertos and revisados,
+         "detalhe": ("sem transcrição" if not t else (f"{len(incertos)} trecho(s) incerto(s)" if incertos else ("revisado" if revisados else "não revisado")))},
+        {"id": "cortes", "nome": "Silêncios e cortes", "feito": bool(dados.get("remocoes")) or bool(dados.get("silencios_sugeridos")),
+         "detalhe": f"{len(dados.get('remocoes') or [])} remoção(ões)"},
+        {"id": "estilo", "nome": "Estilo e elementos", "feito": bool(dados.get("cartoes")) or dados.get("perfil") not in (None, "pessoal"),
+         "detalhe": f"perfil {dados.get('perfil')}, {len(dados.get('cartoes') or [])} elemento(s)"},
+        {"id": "previa", "nome": "Prévia", "feito": any((Path(dados.get('_pasta', '')) / 'x').parent.glob("trabalho/previa-*.mp4")) if dados.get("_pasta") else False, "detalhe": ""},
+        {"id": "exportar", "nome": "Exportar", "feito": bool(dados.get("exportacoes")), "detalhe": f"{len(dados.get('exportacoes') or [])} exportação(ões)"},
+    ]
 
 
 # ---------------------------------------------------------------- handler
@@ -219,8 +246,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(dict(_estado["tarefa"]))
             if url.path == "/api/exportados":
                 itens = sorted(PASTA_EXPORTADOS.glob("*.mp4"), key=lambda p: p.stat().st_mtime, reverse=True)
+                import datetime as _dt
                 return self._json([{"arquivo": str(p), "nome": p.name, "srt": str(p.with_suffix(".srt")) if p.with_suffix(".srt").exists() else None,
-                                    "tamanho_mb": round(p.stat().st_size / 1e6, 2)} for p in itens])
+                                    "tamanho_mb": round(p.stat().st_size / 1e6, 2),
+                                    "quando": _dt.datetime.fromtimestamp(p.stat().st_mtime).strftime("%d/%m %H:%M")} for p in itens])
             if url.path == "/api/logos":
                 return self._json([p.name for p in sorted(PASTA_LOGOS.iterdir()) if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")])
             if url.path == "/api/material":
@@ -261,6 +290,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._imagem_upload(q)
             if rota == "/api/video_apoio/upload":
                 return self._video_apoio_upload(q)
+            if rota == "/api/musica/upload":
+                return self._musica_upload(q)
             corpo = self._ler_json()
             fn = getattr(self, "rota_" + rota.replace("/api/", "").replace("/", "_"), None)
             if not fn:
@@ -324,6 +355,23 @@ class Handler(BaseHTTPRequestHandler):
             f.write(self.rfile.read(tamanho))
         return self._json({"ok": True, "arquivo": nome})
 
+    def _musica_upload(self, q):
+        nome = Path(q.get("nome", ["trilha.mp3"])[0]).name
+        if Path(nome).suffix.lower() not in (".mp3", ".m4a", ".aac", ".wav", ".ogg", ".flac"):
+            raise ErroEdicao("Envie um áudio (mp3, m4a, wav, ogg ou flac).")
+        tamanho = int(self.headers.get("Content-Length") or 0)
+        render.PASTA_MUSICAS.mkdir(parents=True, exist_ok=True)
+        destino = render.PASTA_MUSICAS / nome
+        restante = tamanho
+        with open(destino, "wb") as f:
+            while restante > 0:
+                bloco = self.rfile.read(min(1024 * 1024, restante))
+                if not bloco:
+                    break
+                f.write(bloco)
+                restante -= len(bloco)
+        return self._json({"ok": True, "arquivo": nome})
+
     def _video_apoio_upload(self, q):
         nome = Path(q.get("nome", ["clipe.mp4"])[0]).name
         if Path(nome).suffix.lower() not in EXTENSOES_VIDEO:
@@ -367,11 +415,13 @@ class Handler(BaseHTTPRequestHandler):
             _progresso(0.0, "extraindo áudio")
             audio = mod_transcricao.extrair_audio(origem, pasta / "trabalho" / "audio-16k.wav")
             resultado = mod_transcricao.transcrever(audio, dados["origem"]["info"]["duracao"], modelo=modelo, ao_progredir=_progresso)
+            trocas = mod_glossario.aplicar_transcricao(resultado)
+            resultado["glossario_trocas"] = trocas
             dados["transcricao"] = resultado
             mod_projeto.salvar(pasta, dados, acao=f"transcrito com modelo {modelo} (interface)")
             (pasta / "transcricao-revisao.txt").write_text(mod_transcricao.texto_revisao(resultado), encoding="utf-8")
             incertos = mod_transcricao.segmentos_incertos(resultado)
-            return {"trechos": len(resultado["segmentos"]), "incertos": [s["id"] for s in incertos]}
+            return {"trechos": len(resultado["segmentos"]), "incertos": [s["id"] for s in incertos], "glossario_trocas": resultado.get("glossario_trocas", 0)}
         _iniciar_tarefa("Transcrição", trabalho)
         return self._json({"ok": True})
 
@@ -447,7 +497,7 @@ class Handler(BaseHTTPRequestHandler):
         if "formato" in c:
             mod_projeto.dimensoes_formato(c["formato"])
             dados["formato"] = c["formato"]
-        for chave in ("enquadramento", "titulo", "encerramento", "logo", "audio", "legendas", "marca_dagua", "assinatura"):
+        for chave in ("enquadramento", "titulo", "encerramento", "logo", "audio", "legendas", "marca_dagua", "assinatura", "organizacao"):
             if chave in c and isinstance(c[chave], dict):
                 dados.setdefault(chave, {}).update(c[chave])
         if "duracao_alvo" in c:
@@ -520,6 +570,21 @@ class Handler(BaseHTTPRequestHandler):
         _iniciar_tarefa("Detecção de rosto", trabalho)
         return self._json({"ok": True})
 
+    def rota_zoom_atualizar(self, c):
+        pasta, dados = _projeto_atual()
+        z = next((z for z in dados.get("zooms", []) if z["id"] == int(c["id"])), None)
+        if z is None:
+            raise ErroEdicao(f"Zoom [{c['id']}] não existe.")
+        for k in ("inicio", "fim", "fator"):
+            if c.get(k) not in (None, ""):
+                z[k] = float(c[k])
+        if c.get("tipo"):
+            z["tipo"] = c["tipo"]
+        if z["fim"] <= z["inicio"]:
+            raise ErroEdicao("O fim do zoom precisa ser maior que o início.")
+        mod_projeto.salvar(pasta, dados, acao=f"zoom {c['id']} ajustado (interface)")
+        return self._json({"ok": True})
+
     def rota_zoom_remover(self, c):
         pasta, dados = _projeto_atual()
         dados["zooms"] = [z for z in dados.get("zooms", []) if z["id"] != int(c["id"])]
@@ -541,6 +606,27 @@ class Handler(BaseHTTPRequestHandler):
             a = A(); a.projeto = pasta.name; a.aplicar = bool(c.get("aplicar"))
             mod_cli.cmd_sugerir(a)
         return self._json({"ok": True, "texto": buf.getvalue(), "ja_tinha_topicos": len(ja_tem)})
+
+    def rota_historico(self, c):
+        pasta, dados = _projeto_atual()
+        refazer = pasta / "versoes" / "refazer"
+        return self._json({"versoes": mod_projeto.listar_versoes(pasta)[:40], "pode_refazer": bool(list(refazer.glob("*.json"))) if refazer.exists() else False,
+                           "acoes": (dados.get("historico") or [])[-15:][::-1]})
+
+    def rota_desfazer(self, c):
+        pasta, _ = _projeto_atual()
+        d = mod_projeto.desfazer(pasta)
+        return self._json({"ok": True, "ultima_acao": (d.get("historico") or [{}])[-1].get("acao", "")})
+
+    def rota_refazer(self, c):
+        pasta, _ = _projeto_atual()
+        mod_projeto.refazer(pasta)
+        return self._json({"ok": True})
+
+    def rota_restaurar(self, c):
+        pasta, _ = _projeto_atual()
+        mod_projeto.restaurar_versao(pasta, c["arquivo"])
+        return self._json({"ok": True})
 
     def rota_cartoes_limpar(self, c):
         pasta, dados = _projeto_atual()
@@ -603,20 +689,104 @@ class Handler(BaseHTTPRequestHandler):
     def rota_exportar(self, c):
         pasta, dados = _projeto_atual()
         formatos = c.get("formatos") or [dados.get("formato", "16:9")]
+        redes = c.get("redes") or []
         nome = c.get("nome") or None
+        capa_tempo = c.get("capa_tempo")
+        tarefas = [(f, None) for f in formatos] + [(None, r) for r in redes]
 
         def trabalho():
             saidas = []
-            for i, f in enumerate(formatos):
+            for i, (f, rede) in enumerate(tarefas):
                 def prog(frac, msg=None, i=i):
-                    _progresso((i + frac) / len(formatos), f"exportando {f}: {frac * 100:.0f}%")
-                r = render.renderizar(pasta, dados, formato=f, qualidade="final", nome_saida=nome, ao_progredir=prog)
+                    _progresso((i + frac) / (len(tarefas) + (1 if capa_tempo not in (None, "") else 0)), f"exportando {f or rede}: {frac * 100:.0f}%")
+                r = render.renderizar(pasta, dados, formato=f, qualidade="final", nome_saida=nome, ao_progredir=prog, rede=rede)
                 mod_projeto.salvar(pasta, dados, acao=f"exportado (interface) {r['arquivo']}")
                 r["conferencia"] = render.verificar_saida(Path(r["arquivo"]))
                 saidas.append(r)
-            return {"exportacoes": saidas}
+            capa = None
+            if capa_tempo not in (None, ""):
+                capa = render.capa(pasta, dados, float(capa_tempo), formato=formatos[0] if formatos else None, texto=c.get("capa_texto") or None)
+            return {"exportacoes": saidas, "capa": capa}
         _iniciar_tarefa("Exportação", trabalho)
         return self._json({"ok": True})
+
+    def rota_glossario(self, c):
+        return self._json({"texto": mod_glossario.texto_glossario(), "regras": len(mod_glossario.carregar())})
+
+    def rota_glossario_gravar(self, c):
+        n = mod_glossario.gravar_texto(c.get("texto", ""))
+        return self._json({"ok": True, "regras": n})
+
+    def rota_glossario_aplicar(self, c):
+        pasta, dados = _projeto_atual()
+        if not dados.get("transcricao"):
+            raise ErroEdicao("Transcreva primeiro.")
+        n = mod_glossario.aplicar_transcricao(dados["transcricao"])
+        mod_projeto.salvar(pasta, dados, acao=f"glossário aplicado ({n} trocas)")
+        return self._json({"ok": True, "trocas": n})
+
+    def rota_vicios_sugerir(self, c):
+        pasta, dados = _projeto_atual()
+        lista = mod_vicios.sugerir(dados)
+        mod_projeto.salvar(pasta, dados, acao="cortes inteligentes sugeridos")
+        return self._json({"ok": True, "sugestoes": lista})
+
+    def rota_vicios_aplicar(self, c):
+        pasta, dados = _projeto_atual()
+        ids = [int(i) for i in c.get("ids", [])] or None
+        aplicados = mod_vicios.aplicar(dados, ids)
+        mod_projeto.salvar(pasta, dados, acao=f"cortes inteligentes aplicados: {len(aplicados)}")
+        return self._json({"ok": True, "aplicados": len(aplicados), "duracao_editada": mod_projeto.duracao_editada(dados)})
+
+    def rota_vicios_desfazer(self, c):
+        pasta, dados = _projeto_atual()
+        n = mod_vicios.desfazer(dados)
+        mod_projeto.salvar(pasta, dados, acao="cortes inteligentes desfeitos")
+        return self._json({"ok": True, "desfeitos": n})
+
+    def rota_receitas_salvar(self, c):
+        pasta, dados = _projeto_atual()
+        arq = mod_receitas.salvar(dados, c.get("nome", ""), c.get("descricao", ""), incluir_textos=c.get("incluir_textos", True))
+        return self._json({"ok": True, "arquivo": arq.name, "receitas": mod_receitas.listar()})
+
+    def rota_receitas_aplicar(self, c):
+        pasta, dados = _projeto_atual()
+        r = mod_receitas.aplicar(dados, c["id"], substituir_elementos=c.get("substituir", True))
+        mod_projeto.salvar(pasta, dados, acao=f"receita aplicada: {r['receita']}")
+        return self._json({"ok": True, **r})
+
+    def rota_receitas_remover(self, c):
+        mod_receitas.remover(c["id"])
+        return self._json({"ok": True, "receitas": mod_receitas.listar()})
+
+    def rota_capa(self, c):
+        pasta, dados = _projeto_atual()
+        with _trava_desenho:
+            return self._json(render.capa(pasta, dados, float(c.get("tempo") or 0), formato=c.get("formato") or None, texto=c.get("texto")))
+
+    def rota_exportados_apagar(self, c):
+        p = Path(c["arquivo"]).resolve()
+        if p.parent != PASTA_EXPORTADOS.resolve() and p.parent != (PASTA_EXPORTADOS / "arquivo").resolve():
+            raise ErroEdicao("Só é possível apagar arquivos da pasta de exportados.")
+        for extra in (p, p.with_suffix(".srt")):
+            if extra.exists():
+                extra.unlink()
+        return self._json({"ok": True})
+
+    def rota_exportados_arquivar(self, c):
+        p = Path(c["arquivo"]).resolve()
+        if p.parent != PASTA_EXPORTADOS.resolve():
+            raise ErroEdicao("Só é possível arquivar arquivos da pasta de exportados.")
+        destino = PASTA_EXPORTADOS / "arquivo"
+        destino.mkdir(exist_ok=True)
+        import shutil as _sh
+        for extra in (p, p.with_suffix(".srt")):
+            if extra.exists():
+                _sh.move(str(extra), str(destino / extra.name))
+        return self._json({"ok": True})
+
+    def rota_musica_upload_info(self, c):
+        return self._json({"pasta": str(render.PASTA_MUSICAS)})
 
     def rota_verificar(self, c):
         pasta, dados = _projeto_atual()

@@ -79,6 +79,87 @@ def cmd_renomear(args):
     imprimir("Na interface e nos comandos, use o nome novo ou o nome da pasta.")
 
 
+def cmd_glossario(args):
+    from . import glossario as mod_glossario
+    if args.projeto and args.aplicar:
+        pasta, dados = mod_projeto.carregar(args.projeto)
+        if not dados.get("transcricao"):
+            raise ErroEdicao("Transcreva primeiro.")
+        n = mod_glossario.aplicar_transcricao(dados["transcricao"])
+        mod_projeto.salvar(pasta, dados, acao=f"glossário aplicado ({n} trocas)")
+        imprimir(f"{n} troca(s) feita(s) na transcrição.")
+        return
+    imprimir(f"Glossário em: {mod_glossario.garantir_arquivo()}  ({len(mod_glossario.carregar())} regras)")
+    imprimir(mod_glossario.texto_glossario())
+
+
+def cmd_vicios(args):
+    from . import vicios as mod_vicios
+    pasta, dados = _carregar(args)
+    if args.desfazer:
+        n = mod_vicios.desfazer(dados); mod_projeto.salvar(pasta, dados, acao="cortes inteligentes desfeitos"); imprimir(f"{n} corte(s) desfeito(s)."); return
+    if args.aplicar:
+        ids = _ids(args.ids) if args.ids else None
+        aplicados = mod_vicios.aplicar(dados, ids); mod_projeto.salvar(pasta, dados, acao=f"cortes inteligentes aplicados: {len(aplicados)}")
+        imprimir(f"{len(aplicados)} corte(s) aplicado(s). Duração editada: {formatar_tempo(mod_projeto.duracao_editada(dados), False)}"); return
+    lista = mod_vicios.sugerir(dados); mod_projeto.salvar(pasta, dados, acao="cortes inteligentes sugeridos")
+    if not lista:
+        imprimir("Nenhum vício de fala ou repetição encontrado."); return
+    imprimir(f"{len(lista)} sugestão(ões). Revise e aplique com --aplicar [--ids 1,3]:")
+    for v in lista:
+        imprimir(f"  [{v['id']}] {formatar_tempo(v['inicio'])} --> {formatar_tempo(v['fim'])}  {v['motivo']}: {v['texto']}  (fala {v['fala']})")
+
+
+def cmd_receitas(args):
+    from . import receitas as mod_receitas
+    if args.salvar:
+        pasta, dados = mod_projeto.carregar(args.projeto)
+        arq = mod_receitas.salvar(dados, args.salvar, args.descricao or "", incluir_textos=not args.sem_textos)
+        imprimir(f"Receita salva: {arq}")
+    elif args.aplicar:
+        pasta, dados = mod_projeto.carregar(args.projeto)
+        r = mod_receitas.aplicar(dados, args.aplicar, substituir_elementos=not args.acrescentar)
+        mod_projeto.salvar(pasta, dados, acao=f"receita aplicada: {r['receita']}")
+        imprimir(f"Receita '{r['receita']}' aplicada: {r['elementos_criados']} elemento(s) criado(s), {r['pulados']} pulado(s). Revise os textos na seção 5b.")
+    elif args.remover:
+        imprimir("Removida." if mod_receitas.remover(args.remover) else "Receita não encontrada.")
+    lista = mod_receitas.listar()
+    imprimir(f"{len(lista)} receita(s) em {mod_receitas.PASTA_RECEITAS}:" if lista else "Nenhuma receita salva.")
+    for r in lista:
+        imprimir(f"  - {r['id']}: {r['nome']} ({r['elementos']} elementos, perfil {r['perfil']}) {r['descricao']}")
+
+
+def cmd_capa(args):
+    pasta, dados = _carregar(args)
+    r = render.capa(pasta, dados, ler_tempo(args.tempo), formato=args.formato, texto=args.texto)
+    imprimir(f"Capa gerada: {r['arquivo']}")
+
+
+def cmd_organizar(args):
+    pasta, dados = _carregar(args)
+    org = dados.setdefault("organizacao", {})
+    if args.condominio is not None:
+        org["condominio"] = args.condominio
+    if args.tema is not None:
+        org["tema"] = args.tema
+    mod_projeto.salvar(pasta, dados, acao=f"organização: {org}")
+    imprimir(f"Nome padrão das próximas exportações: {render.nome_padrao_exportacao(dados)}")
+
+
+def cmd_historico(args):
+    pasta, dados = _carregar(args)
+    if args.desfazer:
+        dados = mod_projeto.desfazer(pasta); imprimir("Desfeito. " + (f"Última ação agora: {dados['historico'][-1]['acao']}" if dados.get("historico") else ""))
+    elif args.refazer:
+        mod_projeto.refazer(pasta); imprimir("Refeito.")
+    elif args.restaurar:
+        mod_projeto.restaurar_versao(pasta, args.restaurar); imprimir(f"Versão {args.restaurar} restaurada.")
+    versoes = mod_projeto.listar_versoes(pasta)
+    imprimir(f"{len(versoes)} versão(ões) guardada(s):" if versoes else "Nenhuma versão guardada ainda.")
+    for v in versoes[:20]:
+        imprimir(f"  {v['numero']:5d}  {v['quando']}  {v['acao']}   ({v['arquivo']})")
+
+
 def cmd_projetos(args):
     lista = mod_projeto.listar_projetos()
     if not lista:
@@ -103,6 +184,10 @@ def cmd_transcrever(args):
     def progresso(frac, msg):
         barra(frac)
     resultado = mod_transcricao.transcrever(audio, dados["origem"]["info"]["duracao"], modelo=args.modelo, ao_progredir=progresso)
+    from . import glossario as mod_glossario
+    trocas = mod_glossario.aplicar_transcricao(resultado)
+    if trocas:
+        imprimir(f"Glossário aplicado: {trocas} troca(s) de termos do setor.")
     dados["transcricao"] = resultado
     mod_projeto.salvar(pasta, dados, acao=f"transcrito com modelo {args.modelo}")
     revisao = pasta / "transcricao-revisao.txt"
@@ -260,7 +345,16 @@ def cmd_audio(args):
         cfg["melhorar_voz"] = args.melhorar_voz == "sim"
     if args.normalizar:
         cfg["normalizar"] = args.normalizar == "sim"
+    if args.ruido:
+        cfg["ruido"] = args.ruido
+    if args.musica is not None:
+        cfg["musica"] = None if args.musica.lower() in ("nenhuma", "nao", "não", "") else args.musica
+    if args.musica_volume is not None:
+        cfg["musica_volume_db"] = args.musica_volume
+    if args.musica_abaixa is not None:
+        cfg["musica_abaixa_db"] = args.musica_abaixa
     mod_projeto.salvar(pasta, dados, acao=f"áudio: {cfg}")
+    imprimir(f"Ruído: {cfg.get('ruido', 'nenhuma')} · Trilha: {cfg.get('musica') or 'nenhuma'} ({cfg.get('musica_volume_db', -18)} dB, abaixa {cfg.get('musica_abaixa_db', 12)} dB na fala)")
     imprimir(f"Áudio: ganho {cfg.get('ganho_db', 0):+.1f} dB, melhorar voz {'sim' if cfg.get('melhorar_voz', True) else 'não'}, "
              f"normalizar {'sim' if cfg.get('normalizar', True) else 'não'}")
 
@@ -636,10 +730,11 @@ def cmd_previsualizar(args):
 
 def cmd_exportar(args):
     pasta, dados = _carregar(args)
-    formatos = args.formato or [dados.get("formato", "16:9")]
-    for f in formatos:
-        r = render.renderizar(pasta, dados, formato=f, qualidade="final", nome_saida=args.nome,
-                              ao_progredir=barra_progresso(f"Exportando {f}"))
+    formatos = args.formato or ([] if args.rede else [dados.get("formato", "16:9")])
+    tarefas = [(f, None) for f in formatos] + [(None, r) for r in (args.rede or [])]
+    for f, rede in tarefas:
+        r = render.renderizar(pasta, dados, formato=f, qualidade="final", nome_saida=args.nome, rede=rede,
+                              ao_progredir=barra_progresso(f"Exportando {f or rede}"))
         mod_projeto.salvar(pasta, dados, acao=f"exportado {r['arquivo']}")
         chk = render.verificar_saida(Path(r["arquivo"]))
         imprimir(f"Vídeo final: {r['arquivo']}")
@@ -779,6 +874,27 @@ def construir_parser() -> argparse.ArgumentParser:
     s.add_argument("arquivo"); s.add_argument("--nome"); s.add_argument("--perfil", default="pessoal"); s.set_defaults(fn=cmd_importar)
 
     s = sub.add_parser("projetos", help="lista os projetos"); s.set_defaults(fn=cmd_projetos)
+    s = sub.add_parser("glossario", help="mostra o glossário de legendas; com <projeto> --aplicar, aplica na transcrição")
+    s.add_argument("projeto", nargs="?"); s.add_argument("--aplicar", action="store_true"); s.set_defaults(fn=cmd_glossario)
+
+    s = sub.add_parser("vicios", help="cortes inteligentes: sugere vícios de fala e repetições; --aplicar [--ids]; --desfazer")
+    s.add_argument("projeto"); s.add_argument("--aplicar", action="store_true"); s.add_argument("--ids"); s.add_argument("--desfazer", action="store_true")
+    s.set_defaults(fn=cmd_vicios)
+
+    s = sub.add_parser("receitas", help="combos salvos de estilo e elementos: --salvar NOME, --aplicar NOME, --remover NOME")
+    s.add_argument("projeto", nargs="?"); s.add_argument("--salvar"); s.add_argument("--descricao"); s.add_argument("--sem-textos", action="store_true")
+    s.add_argument("--aplicar"); s.add_argument("--acrescentar", action="store_true"); s.add_argument("--remover"); s.set_defaults(fn=cmd_receitas)
+
+    s = sub.add_parser("capa", help="gera a miniatura (capa) do vídeo"); s.add_argument("projeto"); s.add_argument("--tempo", default="2")
+    s.add_argument("--formato", choices=list(mod_projeto.FORMATOS)); s.add_argument("--texto"); s.set_defaults(fn=cmd_capa)
+
+    s = sub.add_parser("organizar", help="condomínio e tema para nomear as exportações (condominio-tema-data)")
+    s.add_argument("projeto"); s.add_argument("--condominio"); s.add_argument("--tema"); s.set_defaults(fn=cmd_organizar)
+
+    s = sub.add_parser("historico", help="versões do projeto: --desfazer, --refazer, --restaurar ARQUIVO")
+    s.add_argument("projeto"); s.add_argument("--desfazer", action="store_true"); s.add_argument("--refazer", action="store_true"); s.add_argument("--restaurar")
+    s.set_defaults(fn=cmd_historico)
+
     s = sub.add_parser("renomear", help="renomeia um projeto (pergunta os nomes se não forem informados)")
     s.add_argument("projeto", nargs="?"); s.add_argument("novo_nome", nargs="*"); s.set_defaults(fn=cmd_renomear)
     s = sub.add_parser("info", help="resumo do projeto"); s.add_argument("projeto"); s.set_defaults(fn=cmd_info)
@@ -812,7 +928,11 @@ def construir_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("audio", help="volume da voz e melhorias")
     s.add_argument("projeto"); s.add_argument("--ganho", type=float, help="dB, ex.: 3 ou -2")
-    s.add_argument("--melhorar-voz", choices=["sim", "nao"]); s.add_argument("--normalizar", choices=["sim", "nao"]); s.set_defaults(fn=cmd_audio)
+    s.add_argument("--melhorar-voz", choices=["sim", "nao"]); s.add_argument("--normalizar", choices=["sim", "nao"])
+    s.add_argument("--ruido", choices=list(render.RUIDO), help="redução de ruído: nenhuma, leve, media, forte")
+    s.add_argument("--musica", help="trilha de fundo (arquivo em '2-Identidade visual e referências/musicas'); 'nenhuma' para tirar")
+    s.add_argument("--musica-volume", type=float, help="dB, ex.: -18"); s.add_argument("--musica-abaixa", type=float, help="quanto a trilha abaixa na fala, em dB (ex.: 12)")
+    s.set_defaults(fn=cmd_audio)
 
     s = sub.add_parser("texto", help="título e encerramento")
     s.add_argument("projeto"); s.add_argument("--titulo"); s.add_argument("--subtitulo"); s.add_argument("--duracao-titulo", type=float)
@@ -825,7 +945,7 @@ def construir_parser() -> argparse.ArgumentParser:
     s.set_defaults(fn=cmd_logo)
 
     s = sub.add_parser("formato", help="16:9, 9:16 ou 1:1 e enquadramento")
-    s.add_argument("projeto"); s.add_argument("formato", choices=list(mod_projeto.FORMATOS)); s.add_argument("--modo", choices=["cortar", "caber"])
+    s.add_argument("projeto"); s.add_argument("formato", choices=list(mod_projeto.FORMATOS)); s.add_argument("--modo", choices=["cortar", "caber", "seguir"], help="seguir = acompanha o rosto (exige 'rosto' antes)")
     s.add_argument("--centro-x", type=float, help="0 = esquerda, 0.5 = centro, 1 = direita"); s.add_argument("--centro-y", type=float); s.set_defaults(fn=cmd_formato)
 
     s = sub.add_parser("enquadramento", help="gera imagens para revisar o enquadramento")
@@ -897,7 +1017,8 @@ def construir_parser() -> argparse.ArgumentParser:
     s.add_argument("projeto"); s.add_argument("--formato", choices=list(mod_projeto.FORMATOS)); s.set_defaults(fn=cmd_previsualizar)
 
     s = sub.add_parser("exportar", help="exporta o vídeo final (MP4 com legendas embutidas + SRT)")
-    s.add_argument("projeto"); s.add_argument("--formato", nargs="*", choices=list(mod_projeto.FORMATOS)); s.add_argument("--nome"); s.set_defaults(fn=cmd_exportar)
+    s.add_argument("projeto"); s.add_argument("--formato", nargs="*", choices=list(mod_projeto.FORMATOS)); s.add_argument("--nome")
+    s.add_argument("--rede", nargs="*", choices=list(render.REDES), help="ajuste por rede: reels, tiktok, shorts, youtube, feed, whatsapp"); s.set_defaults(fn=cmd_exportar)
 
     s = sub.add_parser("verificar", help="confere original preservado, exportação íntegra, cortes e legendas"); s.add_argument("projeto"); s.set_defaults(fn=cmd_verificar)
 

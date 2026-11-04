@@ -1,0 +1,18 @@
+# Glossário de legendas — uma regra por linha: formas erradas (separadas por |) => forma certa
+# A ferramenta aplica estas trocas na transcrição (sem diferenciar maiúsculas e acentos).
+cindico | cíndico | sindico => síndico
+sindica | cíndica => síndica
+condominal | condominio => condominial
+cota condominal => cota condominial
+inadimplencia => inadimplência
+inadimplente | inadimplentes => inadimplente
+assembleia geral ordinaria | assembleia geral ordinária => Assembleia Geral Ordinária
+ago => AGO
+age => AGE
+conselho fiscal => conselho fiscal
+balançete | balancete => balancete
+consul sindico | consul cíndico | cônsul síndico | consul síndico => Consul Síndico
+fundo de reserva => fundo de reserva
+taxa condominal => taxa condominial
+convencao => convenção
+regimento interno => regimento interno

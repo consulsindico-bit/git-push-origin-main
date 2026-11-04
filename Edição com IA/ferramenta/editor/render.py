@@ -57,6 +57,8 @@ def _plano(dados: dict, perfil: dict, formato: str, qualidade: str) -> dict:
         "legendas": bool(dados.get("legendas", {}).get("ativas", True)) and bool(dados.get("transcricao")),
         "audio": dados.get("audio", {}),
         "enquadramento": dados.get("enquadramento", {"modo": "cortar", "centro_x": 0.5, "centro_y": 0.5}),
+        "rosto": dados.get("rosto"),
+        "mapear_tempo": (lambda t: __import__("editor.projeto", fromlist=["x"]).mapear_tempo(dados, t)),
     }
 
 
@@ -70,6 +72,10 @@ def _filtro_enquadramento(info: dict, plano: dict, perfil: dict) -> str:
         fundo = cor_ffmpeg(perfil.get("fundo_caber", "#000000"))
         return (f"scale={L}:{A}:force_original_aspect_ratio=decrease:flags=lanczos,"
                 f"pad={L}:{A}:(ow-iw)/2:(oh-ih)/2:color={fundo},setsar=1")
+    if modo == "seguir":
+        seguir = _filtro_seguir_rosto(info, plano)
+        if seguir:
+            return seguir
     # cortar: recorta a maior área possível com a proporção de saída, centrada em centro_x/centro_y
     alvo = L / A
     if lo / ao > alvo:
@@ -83,6 +89,60 @@ def _filtro_enquadramento(info: dict, plano: dict, perfil: dict) -> str:
     x = int(min(max(0, cx * lo - cw / 2), lo - cw))
     y = int(min(max(0, cy * ao - ch / 2), ao - ch))
     return f"crop={cw}:{ch}:{x}:{y},scale={L}:{A}:flags=lanczos,setsar=1"
+
+
+def _caminho_musica(cfg_audio: dict) -> Path | None:
+    nome = (cfg_audio or {}).get("musica")
+    if not nome:
+        return None
+    p = Path(nome)
+    for c in ([p] if p.is_absolute() else [PASTA_MUSICAS / nome, Path(nome)]):
+        if c.exists():
+            return c
+    raise ErroEdicao(f"Trilha '{nome}' não encontrada. Coloque o arquivo em '{PASTA_MUSICAS}'.")
+
+
+def _filtro_seguir_rosto(info: dict, plano: dict) -> str | None:
+    """Recorte que acompanha o rosto ao longo do tempo (amostras suavizadas; tempos na linha do tempo cortada)."""
+    rosto = plano.get("rosto") or {}
+    amostras = rosto.get("amostras") or []
+    if len(amostras) < 2:
+        return None
+    L, A = plano["largura"], plano["altura"]
+    lo, ao = int(info["largura"]), int(info["altura"])
+    alvo = L / A
+    if lo / ao > alvo:
+        ch, cw = ao, int(ao * alvo) // 2 * 2
+    else:
+        cw, ch = lo, int(lo / alvo) // 2 * 2
+    mapear = plano["mapear_tempo"]
+    pontos = []
+    janela = 3  # média móvel de 3 amostras (suaviza tremidas)
+    xs = [a["x"] for a in amostras]
+    ys = [a["y"] for a in amostras]
+    for i, a in enumerate(amostras):
+        t = mapear(a["t"])
+        if t is None:
+            continue
+        lo_i, hi_i = max(0, i - janela // 2), min(len(amostras), i + janela // 2 + 1)
+        x = sum(xs[lo_i:hi_i]) / (hi_i - lo_i)
+        y = sum(ys[lo_i:hi_i]) / (hi_i - lo_i)
+        # rosto a ~38% da altura do recorte
+        cx = min(max(x * lo - cw / 2, 0), lo - cw)
+        cy = min(max(y * ao - ch * 0.38, 0), ao - ch)
+        pontos.append((round(t, 3), int(cx), int(cy)))
+    if len(pontos) < 2:
+        return None
+
+    def expr(indice):
+        # interpolação linear por trechos, aninhada (avaliada por quadro)
+        e = str(pontos[-1][indice])
+        for (t0, *v0), (t1, *v1) in zip(reversed(pontos[:-1]), reversed(pontos[1:])):
+            a, b = v0[indice - 1], v1[indice - 1]
+            e = f"if(lt(t\\,{t1}){chr(92)},{a}+({b}-{a})*max(0\\,(t-{t0})/{max(0.001, t1 - t0):.3f})\\,{e})"
+        return e
+    ex, ey = expr(1), expr(2)
+    return f"crop={cw}:{ch}:x='{ex}':y='{ey}',scale={L}:{A}:flags=lanczos,setsar=1"
 
 
 def _filtro_zoom(dados: dict, perfil: dict, plano: dict) -> str | None:
@@ -116,10 +176,17 @@ def _filtro_zoom(dados: dict, perfil: dict, plano: dict) -> str | None:
     return (f"zoompan=z='{expr}':x='(iw-iw/zoom)*{fx:.4f}':y='(ih-ih/zoom)*{fy:.4f}':d=1:s={L}x{A}:fps={FPS_SAIDA}")
 
 
+RUIDO = {"nenhuma": None, "leve": "afftdn=nf=-25:nr=10", "media": "afftdn=nf=-30:nr=18", "forte": "afftdn=nf=-35:nr=28:tn=1"}
+PASTA_MUSICAS = PASTA_FONTES.parent / "musicas"
+
+
 def _filtro_audio(plano: dict) -> str:
     cfg = plano["audio"] or {}
     partes = []
     ganho = float(cfg.get("ganho_db", 0) or 0)
+    ruido = RUIDO.get(cfg.get("ruido") or "nenhuma")
+    if ruido:
+        partes.append(ruido)
     if cfg.get("melhorar_voz", True):
         partes.append("highpass=f=80")
         partes.append("acompressor=threshold=-20dB:ratio=3:attack=5:release=120:makeup=2")
@@ -193,11 +260,25 @@ def _cartao(pasta: Path, perfil: dict, plano: dict, tipo: str, indice_logo: int 
     return filtro, "[enc_v]", "[enc_a]"
 
 
+REDES = {
+    "padrao": {"nome": "Padrão (alta qualidade)", "formato": None, "crf": "20", "maxrate": None, "escala": None, "audio": "192k"},
+    "reels": {"nome": "Instagram Reels / Stories", "formato": "9:16", "crf": "19", "maxrate": "10M", "escala": None, "audio": "192k"},
+    "tiktok": {"nome": "TikTok", "formato": "9:16", "crf": "20", "maxrate": "8M", "escala": None, "audio": "160k"},
+    "shorts": {"nome": "YouTube Shorts", "formato": "9:16", "crf": "19", "maxrate": "12M", "escala": None, "audio": "192k"},
+    "youtube": {"nome": "YouTube (horizontal)", "formato": "16:9", "crf": "19", "maxrate": "12M", "escala": None, "audio": "192k"},
+    "feed": {"nome": "Feed quadrado", "formato": "1:1", "crf": "20", "maxrate": "8M", "escala": None, "audio": "160k"},
+    "whatsapp": {"nome": "WhatsApp (arquivo leve)", "formato": None, "crf": "27", "maxrate": "2.5M", "escala": 720, "audio": "96k"},
+}
+
+
 def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: str = "final",
-               nome_saida: str | None = None, ao_progredir=None) -> dict:
+               nome_saida: str | None = None, ao_progredir=None, rede: str | None = None) -> dict:
     """Gera o vídeo (prévia ou final) e, na exportação final, o SRT ao lado. Retorna um resumo."""
     perfil = perfil_do_projeto(dados)
-    formato = formato or dados.get("formato", "16:9")
+    preset = REDES.get(rede or "padrao")
+    if preset is None:
+        raise ErroEdicao(f"Rede '{rede}' desconhecida. Opções: {', '.join(REDES)}")
+    formato = formato or preset["formato"] or dados.get("formato", "16:9")
     origem = caminho_origem(dados)
     info = dados["origem"]["info"]
     plano = _plano(dados, perfil, formato, qualidade)
@@ -355,7 +436,21 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
         fc.append(f"{atual_v}ass='{escapar_filtro(arq_ass.name)}'{fontsdir}[vmain2]")
     else:
         fc.append(f"{atual_v}null[vmain2]")
-    fc.append(f"[ac]{_filtro_audio(plano)}[amain]")
+    musica = _caminho_musica(plano["audio"])
+    if musica:
+        idx_m = nova_entrada(["-stream_loop", "-1", "-i", str(musica)])
+        vol = float(plano["audio"].get("musica_volume_db", -18))
+        duck = float(plano["audio"].get("musica_abaixa_db", 12))
+        fc.append(f"[ac]{_filtro_audio(plano)}[avoz]")
+        fc.append(f"[{idx_m}:a]atrim=0:{dur_conteudo:.3f},asetpts=PTS-STARTPTS,aformat=sample_fmts=fltp:sample_rates={TAXA_AUDIO}:channel_layouts=stereo,"
+                  f"volume={vol}dB,afade=t=out:st={max(0, dur_conteudo - 2):.3f}:d=2[amus]")
+        fc.append("[avoz]asplit=2[avoz1][avoz2]")
+        # a trilha abaixa sozinha quando há voz (sidechain); a razão vem de 'musica_abaixa_db'
+        ratio = max(2.0, min(20.0, 1 + duck / 2))
+        fc.append(f"[amus][avoz2]sidechaincompress=threshold=0.02:ratio={ratio:.1f}:attack=20:release=400:makeup=1[amusd]")
+        fc.append(f"[avoz1][amusd]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[amain]")
+    else:
+        fc.append(f"[ac]{_filtro_audio(plano)}[amain]")
 
     # --- Cartões
     sequencia = []
@@ -374,7 +469,6 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
         fc.append("".join(rv + ra for rv, ra in sequencia) + f"concat=n={len(sequencia)}:v=1:a=1[vout][aout]")
 
     filtro_completo = ";".join(fc)
-    (trabalho / "filtro.txt").write_text(filtro_completo, encoding="utf-8")
 
     # --- Saída
     duracao_total = plano["duracao_conteudo"] + plano["duracao_titulo"] + plano["duracao_encerramento"]
@@ -384,21 +478,30 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
         codec = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-c:a", "aac", "-b:a", "96k"]
     else:
         PASTA_EXPORTADOS.mkdir(parents=True, exist_ok=True)
-        base = nome_seguro(nome_saida or dados["nome"])
-        saida = PASTA_EXPORTADOS / f"{base}-{sufixo}.mp4"
+        base = nome_seguro(nome_saida or nome_padrao_exportacao(dados))
+        marca_rede = f"-{rede}" if rede and rede != "padrao" else ""
+        saida = PASTA_EXPORTADOS / f"{base}-{sufixo}{marca_rede}.mp4"
         n = 2
         while saida.exists():
-            saida = PASTA_EXPORTADOS / f"{base}-{sufixo}-{n}.mp4"
+            saida = PASTA_EXPORTADOS / f"{base}-{sufixo}{marca_rede}-{n}.mp4"
             n += 1
-        codec = ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-profile:v", "high", "-pix_fmt", "yuv420p",
-                 "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]
+        codec = ["-c:v", "libx264", "-preset", "medium", "-crf", preset["crf"], "-profile:v", "high", "-pix_fmt", "yuv420p",
+                 "-c:a", "aac", "-b:a", preset["audio"], "-movflags", "+faststart"]
+        if preset["maxrate"]:
+            codec += ["-maxrate", preset["maxrate"], "-bufsize", preset["maxrate"]]
+        if preset["escala"]:
+            lado = int(preset["escala"])
+            fc[-1] = fc[-1]  # (o grafo já está pronto; a redução de escala é aplicada no filtro final)
+            escala_filtro = f"scale='if(gt(iw,ih),-2,{lado})':'if(gt(iw,ih),{lado},-2)'"
+            filtro_completo = filtro_completo.replace("[vout]", "[vout_full]") + f";[vout_full]{escala_filtro}[vout]"
     # O grafo de filtros vai direto como argumento (funciona em qualquer versão do FFmpeg;
     # a opção -filter_complex_script foi removida nas versões 8+). O filtro.txt fica só para consulta.
+    (trabalho / "filtro.txt").write_text(filtro_completo, encoding="utf-8")
     args = entradas + ["-filter_complex", filtro_completo,
                        "-map", "[vout]", "-map", "[aout]", "-r", str(FPS_SAIDA)] + codec + [str(saida)]
     executar_ffmpeg_com_progresso(args, duracao_total, ao_progredir, descricao=qualidade, cwd=trabalho)
 
-    resultado = {"arquivo": str(saida), "formato": formato, "qualidade": qualidade, "duracao_prevista": round(duracao_total, 3),
+    resultado = {"arquivo": str(saida), "formato": formato, "qualidade": qualidade, "rede": rede or "padrao", "duracao_prevista": round(duracao_total, 3),
                  "legendas": len(legendas), "trechos": len(plano["trechos"]), "logo": bool(plano["logo"]),
                  "titulo": bool(plano["duracao_titulo"]), "encerramento": plano["encerramento_ativo"],
                  "cartoes": len(sobreposicoes)}
@@ -410,6 +513,55 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
         resultado["quando"] = dt.datetime.now().isoformat(timespec="seconds")
         dados.setdefault("exportacoes", []).append(resultado)
     return resultado
+
+
+def nome_padrao_exportacao(dados: dict) -> str:
+    """condominio-tema-data quando o projeto tiver esses campos; senão o nome do projeto."""
+    org = dados.get("organizacao") or {}
+    partes = [org.get("condominio"), org.get("tema")]
+    partes = [p for p in partes if p]
+    if partes:
+        return "-".join(partes) + "-" + dt.date.today().strftime("%Y-%m-%d")
+    return dados["nome"]
+
+
+def capa(pasta: Path, dados: dict, tempo: float, formato: str | None = None, texto: str | None = None) -> dict:
+    """Miniatura (capa) do vídeo: quadro no instante, com os elementos visíveis e, opcionalmente, um título grande."""
+    from PIL import Image, ImageDraw
+    from .cartoes import _fonte, _rgba
+    perfil = perfil_do_projeto(dados)
+    formato = formato or dados.get("formato", "16:9")
+    r = palco(pasta, dados, tempo, formato)
+    img = Image.open(r["base"]).convert("RGBA")
+    for e in r["elementos"]:
+        if not e["visivel"] or not e.get("arquivo") or e["tipo"] in ("tela",):
+            continue
+        _colar(img, Image.open(e["arquivo"]).convert("RGBA"), int(e["x"]), int(e["y"]))
+    if r.get("logo"):
+        lg = Image.open(r["logo"]["arquivo"]).convert("RGBA").resize((r["logo"]["w"], r["logo"]["h"]))
+        _colar(img, lg, r["logo"]["x"], r["logo"]["y"])
+    texto = texto if texto is not None else (dados.get("titulo") or {}).get("texto") or ""
+    if texto:
+        L, A = img.size
+        base = min(L, A)
+        tam = int(base * 0.085)
+        fonte = _fonte(perfil, "titulos", tam, negrito=True)
+        draw = ImageDraw.Draw(img)
+        from .cartoes import _quebrar, _medir
+        linhas = _quebrar(draw, texto, fonte, int(L * 0.86))
+        alt = int(tam * 1.2)
+        y = int(A * 0.5 - len(linhas) * alt / 2)
+        faixa = Image.new("RGBA", (L, len(linhas) * alt + int(tam * 0.8)), _rgba(perfil["cores"]["primaria"], 0.72))
+        img.alpha_composite(faixa, (0, y - int(tam * 0.4)))
+        draw = ImageDraw.Draw(img)
+        for linha in linhas:
+            w = _medir(draw, linha, fonte)[0]
+            draw.text(((L - w) / 2, y), linha, font=fonte, fill=_rgba("#FFFFFF"), stroke_width=max(2, tam // 18), stroke_fill=_rgba(perfil["cores"]["primaria"]))
+            y += alt
+    PASTA_EXPORTADOS.mkdir(parents=True, exist_ok=True)
+    saida = PASTA_EXPORTADOS / f"{nome_seguro(nome_padrao_exportacao(dados))}-capa-{formato.replace(':', 'x')}.jpg"
+    img.convert("RGB").save(saida, quality=92)
+    return {"arquivo": str(saida), "tempo": tempo, "formato": formato}
 
 
 def quadro(pasta: Path, dados: dict, tempo: float, formato: str | None = None) -> dict:

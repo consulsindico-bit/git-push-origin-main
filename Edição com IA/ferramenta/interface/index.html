@@ -41,6 +41,26 @@
   .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:12px; }
   .resumo { font-size:13px; color:#445; }
   details summary { cursor:pointer; color:var(--azul); font-size:13px; }
+  .etapas { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .etapa { padding:6px 10px; border-radius:16px; background:#eef1f8; color:var(--azul); font-size:13px; cursor:pointer; border:2px solid transparent; }
+  .etapa.feita { background:#e7f5ec; color:var(--ok); }
+  .etapa.atual { border-color:var(--dourado); font-weight:600; }
+  body.guiado main > section { display:none; }
+  body.guiado main > section.ativa { display:block; }
+  body.guiado #comProjeto > section { display:none; }
+  body.guiado #comProjeto > section.ativa { display:block; }
+  .lt { position:relative; min-width:100%; }
+  .ltRegua { position:relative; height:22px; border-bottom:1px solid var(--borda); background:#fff; }
+  .ltTick { position:absolute; top:0; height:22px; border-left:1px solid #ccd; font-size:10px; color:#667; padding-left:3px; }
+  .ltTrilha { position:relative; height:30px; border-bottom:1px solid #eef; }
+  .ltTrilha.alta { height:36px; }
+  .ltNome { position:sticky; left:0; z-index:2; background:#fafbfe; font-size:11px; color:#556; padding:2px 6px; width:90px; display:inline-block; }
+  .ltBar { position:absolute; top:4px; height:22px; border-radius:5px; font-size:11px; color:#fff; overflow:hidden; white-space:nowrap; padding:3px 6px; box-sizing:border-box; cursor:grab; user-select:none; }
+  .ltBar.fala { background:#9aa6c4; cursor:pointer; } .ltBar.fala.rem { background:repeating-linear-gradient(45deg,#c99,#c99 4px,#e8b4b4 4px,#e8b4b4 8px); }
+  .ltBar.remocao { background:#d9534f; cursor:default; } .ltBar.elemento { background:var(--azul); } .ltBar.zoom { background:#6b8e23; } .ltBar.assinatura { background:var(--dourado); }
+  .ltBar.sel { outline:2px solid var(--dourado); }
+  .ltBar .alca { position:absolute; top:0; bottom:0; width:7px; cursor:ew-resize; background:rgba(255,255,255,.35); } .ltBar .alcaE { left:0; } .ltBar .alcaD { right:0; }
+  .ltCursor { position:absolute; top:0; bottom:0; width:2px; background:var(--dourado); pointer-events:none; z-index:3; }
   #palco { position:relative; background:#000; border-radius:8px; overflow:hidden; user-select:none; touch-action:none; margin:0 auto; }
   #palco img.base { position:absolute; left:0; top:0; width:100%; height:100%; }
   #palco .el { position:absolute; cursor:grab; outline:2px dashed transparent; }
@@ -61,7 +81,15 @@
   <h1>Edição com IA <small id="versao" style="font-weight:normal;font-size:12px;opacity:.8"></small></h1>
   <div>Projeto: <select id="selProjeto"></select></div>
   <div id="resumoTopo" class="resumo" style="color:#dfe3ee"></div>
+  <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+    <button id="btnDesfazer" class="sec" title="desfaz a última alteração do projeto" style="margin:0">↶ Desfazer</button>
+    <button id="btnRefazer" class="sec" style="margin:0">↷ Refazer</button>
+    <button id="btnHistorico" class="sec" style="margin:0">Histórico</button>
+    <label style="margin:0;color:#dfe3ee;font-size:13px"><input type="checkbox" id="modoGuiado"> Modo guiado</label>
+  </div>
 </header>
+<div id="historicoPainel" style="display:none;background:#fff;border-bottom:1px solid var(--borda);padding:10px 20px;max-height:260px;overflow:auto;font-size:13px"></div>
+<div id="assistente" style="display:none;background:#fff;border-bottom:1px solid var(--borda);padding:10px 20px"></div>
 <div id="dependencias" class="msg erro" style="display:none;margin:12px 20px 0;border-radius:8px"></div>
 <div id="tarefa"><span id="tarefaTexto"></span><div class="progresso"><div id="tarefaBarra"></div></div></div>
 
@@ -100,7 +128,7 @@
     <div id="msgDescrever"></div>
   </section>
 
-  <section>
+  <section id="secTranscricao">
     <h2>3. Transcrição e legendas <small>local, em pt-BR, com marcações de tempo; nada sai do seu computador</small></h2>
     <div class="linha">
       <div><label>Modelo (maior = mais preciso e mais lento)</label>
@@ -114,10 +142,16 @@
       <button id="btnSalvarTranscricao">Salvar correções e cortes de falas</button>
       <label style="display:inline-block;margin-left:12px"><input type="checkbox" id="legendasAtivas" checked> Gravar legendas no vídeo</label>
       <details style="margin-top:8px"><summary>Ver as legendas como ficarão (já com os cortes)</summary><div id="legendasPrevia" class="mono"></div></details>
+      <details style="margin-top:8px"><summary>Glossário de legendas (termos do setor corrigidos automaticamente)</summary>
+        <p class="resumo">Uma regra por linha: formas erradas separadas por | , depois => e a forma certa. Aplicado automaticamente após transcrever; o botão aplica de novo na transcrição atual.</p>
+        <textarea id="glossarioTexto" style="min-height:160px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px"></textarea>
+        <button class="sec" id="btnGlossarioGravar">Salvar glossário</button><button class="sec" id="btnGlossarioAplicar">Aplicar na transcrição</button>
+        <div id="msgGlossario"></div>
+      </details>
     </div>
   </section>
 
-  <section>
+  <section id="secCortes">
     <h2>4. Silêncios e cortes <small>sugestões são revisadas antes de aplicar; tudo pode ser desfeito</small></h2>
     <div class="linha">
       <div><label>Silêncio mínimo (s)</label><input type="number" id="silMin" value="0.7" step="0.1" min="0.2"></div>
@@ -130,16 +164,18 @@
       <div><label>fim</label><input type="text" id="corteFim" placeholder="ex.: 0:18"></div>
       <div style="align-self:end"><button id="btnCortar" class="sec">Adicionar corte</button></div>
     </div>
+    <div style="margin-top:10px"><button id="btnVicios" class="sec">Sugerir cortes inteligentes (vícios de fala e repetições)</button></div>
+    <div id="viciosLista"></div>
     <div id="cortesLista"></div>
     <div id="msgCortes"></div>
   </section>
 
-  <section>
+  <section id="secEstilo">
     <h2>5. Formato, enquadramento, textos, logo e áudio</h2>
     <div class="linha">
       <div><label>Perfil de estilo</label><select id="perfil"></select></div>
       <div><label>Formato</label><select id="formato"><option value="16:9">Horizontal 16:9</option><option value="9:16">Vertical 9:16</option><option value="1:1">Quadrado 1:1</option></select></div>
-      <div><label>Enquadramento</label><select id="enqModo"><option value="cortar">Recortar (preenche a tela)</option><option value="caber">Caber inteiro (com bordas)</option></select></div>
+      <div><label>Enquadramento</label><select id="enqModo"><option value="cortar">Recortar (preenche a tela)</option><option value="caber">Caber inteiro (com bordas)</option><option value="seguir">Recortar seguindo o rosto (exige detectar rosto)</option></select></div>
       <div><label>Centro horizontal (0 = esquerda, 1 = direita): <span id="cxVal"></span></label><input type="range" id="enqCx" min="0" max="1" step="0.05"></div>
       <div><label>Centro vertical (0 = topo, 1 = base): <span id="cyVal"></span></label><input type="range" id="enqCy" min="0" max="1" step="0.05"></div>
       <div><label>Ver enquadramento no instante (s)</label><input type="number" id="enqTempo" value="5" step="1" min="0"></div>
@@ -172,6 +208,18 @@
       <div><label>Aparece de (s)</label><input type="number" id="assIni" step="0.5" min="0"></div>
       <div><label>até (s)</label><input type="number" id="assFim" step="0.5" min="0"></div>
       <div><label><input type="checkbox" id="assAtivo"> Mostrar assinatura</label></div>
+    </div>
+    <div class="linha">
+      <div><label>Redução de ruído (gravação em carro, rua, ventilador)</label><select id="ruido"><option value="nenhuma">Nenhuma</option><option value="leve">Leve</option><option value="media">Média</option><option value="forte">Forte</option></select></div>
+      <div><label>Trilha de fundo (abaixa sozinha quando você fala)</label><select id="musica"><option value="">Nenhuma</option></select></div>
+      <div><label>Enviar trilha (mp3, m4a, wav)</label><input type="file" id="musicaUpload" accept=".mp3,.m4a,.aac,.wav,.ogg,.flac"></div>
+      <div><label>Volume da trilha (dB)</label><input type="number" id="musicaVolume" step="1" placeholder="-18"></div>
+      <div><label>Quanto abaixa na fala (dB)</label><input type="number" id="musicaAbaixa" step="1" placeholder="12"></div>
+    </div>
+    <div class="linha">
+      <div><label>Condomínio (para nomear as exportações)</label><input type="text" id="orgCondominio" placeholder="ex.: Residencial Sol"></div>
+      <div><label>Tema</label><input type="text" id="orgTema" placeholder="ex.: inadimplencia"></div>
+      <div style="align-self:end"><span class="resumo" id="orgNome"></span></div>
     </div>
     <div class="linha">
       <div><label>Volume da voz (dB, ex.: 3 ou -2)</label><input type="number" id="ganho" step="0.5"></div>
@@ -223,6 +271,19 @@
     <button id="btnCartaoAdd">Adicionar elemento</button>
     </details>
     <div style="margin-top:8px"><button id="btnValidar" class="sec">Validar elementos</button><button id="btnLimparElementos" class="perigo">Reiniciar elementos</button></div>
+    <details style="margin-top:10px"><summary><b>Receitas</b> (combos salvos de estilo + elementos, por tipo de vídeo)</summary>
+      <div class="linha">
+        <div><label>Aplicar receita</label><select id="receitaSel"><option value="">—</option></select></div>
+        <div style="align-self:end"><button id="btnReceitaAplicar" class="sec">Aplicar (substitui os elementos)</button><button id="btnReceitaRemover" class="perigo">Excluir receita</button></div>
+      </div>
+      <div class="linha">
+        <div><label>Salvar o projeto atual como receita: nome</label><input type="text" id="receitaNome" placeholder="ex.: aviso-condominio"></div>
+        <div><label>Descrição</label><input type="text" id="receitaDesc"></div>
+        <div><label><input type="checkbox" id="receitaTextos" checked> Guardar os textos dos elementos (desmarque para deixar só o esqueleto)</label></div>
+        <div style="align-self:end"><button id="btnReceitaSalvar" class="sec">Salvar receita</button></div>
+      </div>
+      <div id="msgReceitas"></div>
+    </details>
     <div id="msgValidar"></div>
     <div id="cartoesLista" style="margin-top:10px"></div>
     <div id="msgCartoes"></div>
@@ -243,7 +304,14 @@
     </details>
   </section>
 
-  <section>
+  <section id="secLinha">
+    <h2>5d. Linha do tempo <small>falas, remoções, elementos, zoom e assinatura; arraste para mover, puxe as bordas para mudar início e fim, clique para abrir no Palco</small></h2>
+    <div class="palcoBarra"><label style="margin:0">Escala <input type="range" id="ltEscala" min="8" max="120" step="2" value="30" style="width:200px"></label><span class="resumo" id="ltInfo"></span></div>
+    <div id="linhaTempoVisual" style="overflow-x:auto;border:1px solid var(--borda);border-radius:8px;background:#fafbfe"></div>
+    <div id="msgLinha"></div>
+  </section>
+
+  <section id="secPalco">
     <h2>5c. Palco: posicione os elementos <small>escolha o instante, veja o quadro como vai sair e arraste legenda, cartões, imagens, logo e marca d'água</small></h2>
     <div class="palcoBarra">
       <button id="palcoAnt" class="sec" title="elemento anterior">◀</button>
@@ -260,6 +328,7 @@
         <p class="resumo" id="palcoInfo">Clique em “Mostrar quadro”. Arraste um item para movê-lo: a posição é salva ao soltar. Logo e marca d'água encaixam no canto mais próximo. A legenda sobe e desce.</p>
         <div id="palcoSel" style="display:none">
           <p><b id="palcoSelNome"></b></p>
+          <label>Texto (atualiza o quadro ao digitar)</label><input type="text" id="palcoTexto">
           <button class="sec" id="palcoMenor">menor</button><button class="sec" id="palcoMaior">maior</button><button class="sec" id="palcoCentrar">centralizar</button>
           <button class="sec" id="palcoTopo">topo</button><button class="sec" id="palcoMeio">meio</button><button class="sec" id="palcoBaixo">abaixo do rosto</button>
         </div>
@@ -268,19 +337,26 @@
     </div>
   </section>
 
-  <section>
+  <section id="secPrevia">
     <h2>6. Pré-visualizar <small>antes e depois, em baixa resolução para ser rápido</small></h2>
     <button id="btnPrevia">Gerar prévia</button>
     <div id="msgPrevia"></div>
     <div class="cards"><div><p class="resumo">Antes (original)</p><video id="videoAntes" controls preload="metadata"></video></div><div><p class="resumo">Depois (prévia)</p><video id="videoDepois" controls preload="metadata"></video></div></div>
   </section>
 
-  <section>
+  <section id="secExportar">
     <h2>7. Exportar <small>MP4 com áudio e legendas embutidas + arquivo SRT ao lado, em “4-Vídeos exportados”</small></h2>
+    <p class="resumo">Formatos genéricos (alta qualidade):</p>
     <label><input type="checkbox" class="fmt" value="16:9"> 16:9</label>
     <label><input type="checkbox" class="fmt" value="9:16"> 9:16</label>
     <label><input type="checkbox" class="fmt" value="1:1"> 1:1</label>
-    <label>Nome do arquivo (opcional)</label><input type="text" id="nomeExportar">
+    <p class="resumo">Ou por rede (tamanho e taxa ajustados; todos de uma vez):</p>
+    <div id="redesLista"></div>
+    <div class="linha">
+      <div><label>Nome do arquivo (vazio = condomínio-tema-data ou nome do projeto)</label><input type="text" id="nomeExportar"></div>
+      <div><label>Capa: instante (s; vazio = sem capa)</label><input type="number" id="capaTempo" step="0.5" min="0"></div>
+      <div><label>Texto da capa (vazio = título do projeto)</label><input type="text" id="capaTexto"></div>
+    </div>
     <button id="btnExportar">Exportar</button>
     <button id="btnVerificar" class="sec">Verificar projeto</button>
     <div id="msgExportar"></div>
@@ -316,7 +392,7 @@ async function carregar() {
   dep.textContent = estado.dependencias.length ? "Atenção, falta algo no computador:\n" + estado.dependencias.map(d => "• " + d).join("\n") : "";
   const p = estado.projeto;
   $("comProjeto").style.display = p ? "" : "none";
-  if (!p) { $("resumoTopo").textContent = "Importe um vídeo para começar."; mostrarTarefa(estado.tarefa); return; }
+  if (!p) { $("resumoTopo").textContent = "Importe um vídeo para começar."; mostrarTarefa(estado.tarefa); aplicarModoGuiado(); return; }
   sp.value = p.id;
   const av = (p.avisos || []); const elAv = $("avisosOrigem"); elAv.style.display = av.length ? "" : "none"; elAv.innerHTML = av.map(a => "⚠ " + esc(a)).join("<br>");
   $("resumoTopo").textContent = `${p.origem.arquivo} · ${p.origem.info.largura}x${p.origem.info.altura} · original ${fmtTempo(p.origem.info.duracao)} · editado ${fmtTempo(p.duracao_editada)} · ${p.remocoes.length} remoção(ões)`;
@@ -328,6 +404,14 @@ async function carregar() {
   $("logoPos").value = p.logo.posicao || p.perfil_dados.logo.posicao; $("logoAtivo").checked = p.logo.ativo !== false;
   $("ganho").value = p.audio.ganho_db ?? 0; $("melhorarVoz").checked = p.audio.melhorar_voz !== false; $("normalizar").checked = p.audio.normalizar !== false;
   $("legendasAtivas").checked = p.legendas.ativas !== false;
+  $("ruido").value = p.audio.ruido || "nenhuma";
+  $("musica").innerHTML = "<option value=''>Nenhuma</option>" + (p.musicas || []).map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join("");
+  $("musica").value = p.audio.musica || ""; $("musicaVolume").value = p.audio.musica_volume_db ?? ""; $("musicaAbaixa").value = p.audio.musica_abaixa_db ?? "";
+  const org = p.organizacao || {}; $("orgCondominio").value = org.condominio || ""; $("orgTema").value = org.tema || "";
+  $("orgNome").textContent = (org.condominio || org.tema) ? "arquivos: " + [org.condominio, org.tema].filter(Boolean).join("-") + "-" + new Date().toISOString().slice(0, 10) : "";
+  $("receitaSel").innerHTML = "<option value=''>—</option>" + (p.receitas || []).map(r => `<option value="${esc(r.id)}">${esc(r.nome)} (${r.elementos} elementos${r.descricao ? ", " + esc(r.descricao) : ""})</option>`).join("");
+  $("redesLista").innerHTML = Object.entries(p.redes || {}).map(([k, v]) => `<label style="display:inline-block;margin-right:10px"><input type="checkbox" class="rede" value="${k}"> ${esc(v)}</label>`).join("");
+  renderVicios(p);
   $("legModo").value = p.legendas.modo || ""; $("legPos").value = p.legendas.posicao_percentual != null ? Math.round(p.legendas.posicao_percentual * 100) : "";
   const md = p.marca_dagua || {}; $("mdTexto").value = md.texto || ""; $("mdPos").value = md.posicao || "";
   const as = p.assinatura || {}; $("assNome").value = as.nome || ""; $("assHandle").value = as.handle || ""; $("assIni").value = as.inicio ?? ""; $("assFim").value = as.fim ?? ""; $("assAtivo").checked = !!as.ativo;
@@ -339,7 +423,8 @@ async function carregar() {
   $("ctVideo").innerHTML = "<option value=''>—</option>" + (p.videos_apoio || []).map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("");
   $("ctSubtipo").innerHTML = Object.entries(p.subtipos_tela || {}).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
   const ro = p.rosto || {}; $("rostoInfo").textContent = ro.centro_x != null ? `rosto detectado em ${ro.quadros_com_rosto}/${ro.quadros} quadros (x ${ro.centro_x}, y ${ro.centro_y}); o zoom segue o rosto` : (ro.quadros ? "nenhum rosto detectado" : "");
-  renderCartoes(p); renderZooms(p); renderLinhaTempo(p); palcoAtualizarSlider(p);
+  renderCartoes(p); renderZooms(p); renderLinhaTempo(p); palcoAtualizarSlider(p); renderLinhaVisual(p);
+  aplicarModoGuiado();
   document.querySelectorAll(".fmt").forEach(c => c.checked = c.value === p.formato);
   const logos = await api("logos");
   $("logoArquivo").innerHTML = "<option value=''>(usar a do perfil: " + esc(p.perfil_dados.logo.arquivo || "nenhuma") + ")</option>" + logos.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
@@ -418,7 +503,7 @@ function renderCartoes(p) {
     if (c && c.tipo !== "imagem") { if (c.tipo === "chips" || c.tipo === "resumo") corpo.itens = q(".ctEdTexto").value; else corpo.texto = q(".ctEdTexto").value; }
     if (q(".ctEdDestaque")) corpo.destaque = q(".ctEdDestaque").value;
     if (q(".ctEdDescricao")) corpo.descricao = q(".ctEdDescricao").value;
-    try { await api("cartoes/atualizar", corpo); msg("msgCartoes", `Elemento ${b.dataset.id} salvo.`, "ok"); carregar(); } catch (e) { msg("msgCartoes", e.message, "erro"); }
+    try { await api("cartoes/atualizar", corpo); msg("msgCartoes", `Elemento ${b.dataset.id} salvo.`, "ok"); await carregar(); if (palcoDados) mostrarPalco(); } catch (e) { msg("msgCartoes", e.message, "erro"); }
   });
   el.querySelectorAll(".ctPrevia").forEach(b => b.onclick = async () => {
     try { await salvarConfig(); const r = await api("cartoes/previa", { id: +b.dataset.id, formato: $("formato").value });
@@ -524,7 +609,144 @@ $("btnCartaoAdd").onclick = async () => {
   } catch (e) { msg("msgCartoes", e.message, "erro"); }
 };
 
-// ------------------------------------------------ palco (posicionamento visual)
+// ------------------------------------------------ glossário
+document.querySelector("#glossarioTexto").closest("details").addEventListener("toggle", async ev => { if (ev.target.open && !$("glossarioTexto").value) { try { const g = await api("glossario", {}); $("glossarioTexto").value = g.texto; } catch (e) { msg("msgGlossario", e.message, "erro"); } } });
+$("btnGlossarioGravar").onclick = async () => { try { const r = await api("glossario/gravar", { texto: $("glossarioTexto").value }); msg("msgGlossario", `Glossário salvo (${r.regras} regras).`, "ok"); } catch (e) { msg("msgGlossario", e.message, "erro"); } };
+$("btnGlossarioAplicar").onclick = async () => { try { await api("glossario/gravar", { texto: $("glossarioTexto").value || (await api("glossario", {})).texto }); const r = await api("glossario/aplicar", {}); msg("msgGlossario", `${r.trocas} troca(s) feita(s) na transcrição.`, "ok"); carregar(); } catch (e) { msg("msgGlossario", e.message, "erro"); } };
+
+// ------------------------------------------------ cortes inteligentes
+$("btnVicios").onclick = async () => { try { const r = await api("vicios/sugerir", {}); msg("msgCortes", r.sugestoes.length ? `${r.sugestoes.length} sugestão(ões). Marque e aplique.` : "Nenhum vício de fala ou repetição encontrado.", r.sugestoes.length ? "info" : "ok"); carregar(); } catch (e) { msg("msgCortes", e.message, "erro"); } };
+function renderVicios(p) {
+  const el = $("viciosLista"); const lista = p.vicios_sugeridos || [];
+  if (!lista.length) { el.innerHTML = ""; return; }
+  el.innerHTML = `<table><thead><tr><th>Aplicar</th><th>#</th><th>Início</th><th>Fim</th><th>Motivo</th><th>Trecho</th><th>Fala</th></tr></thead><tbody>` +
+    lista.map(v => `<tr><td><input type="checkbox" class="selVicio" value="${v.id}" checked></td><td>${v.id}</td><td>${fmtTempo(v.inicio)}</td><td>${fmtTempo(v.fim)}</td><td>${esc(v.motivo)}</td><td>${esc(v.texto)}</td><td>${v.fala}</td></tr>`).join("") +
+    `</tbody></table><button id="btnViciosAplicar">Aplicar cortes marcados</button><button id="btnViciosDesfazer" class="perigo">Desfazer cortes inteligentes</button>`;
+  $("btnViciosAplicar").onclick = async () => { const ids = [...document.querySelectorAll(".selVicio:checked")].map(c => +c.value); if (!ids.length) return msg("msgCortes", "Nenhum corte marcado.", "erro"); try { const r = await api("vicios/aplicar", { ids }); msg("msgCortes", `${r.aplicados} corte(s) aplicado(s). Duração editada: ${fmtTempo(r.duracao_editada)}.`, "ok"); carregar(); } catch (e) { msg("msgCortes", e.message, "erro"); } };
+  $("btnViciosDesfazer").onclick = async () => { try { const r = await api("vicios/desfazer", {}); msg("msgCortes", `${r.desfeitos} corte(s) desfeito(s).`, "ok"); carregar(); } catch (e) { msg("msgCortes", e.message, "erro"); } };
+}
+
+// ------------------------------------------------ receitas
+$("btnReceitaSalvar").onclick = async () => { try { await salvarConfig(); const r = await api("receitas/salvar", { nome: $("receitaNome").value, descricao: $("receitaDesc").value, incluir_textos: $("receitaTextos").checked }); msg("msgReceitas", `Receita salva: ${r.arquivo}`, "ok"); $("receitaNome").value = ""; carregar(); } catch (e) { msg("msgReceitas", e.message, "erro"); } };
+$("btnReceitaAplicar").onclick = async () => { const id = $("receitaSel").value; if (!id) return msg("msgReceitas", "Escolha uma receita.", "erro");
+  const n = (estado.projeto.cartoes || []).length; if (!confirm(`Aplicar a receita “${id}”? Os ${n} elemento(s) atuais serão substituídos (dá para desfazer no botão ↶).`)) return;
+  try { const r = await api("receitas/aplicar", { id, substituir: true }); msg("msgReceitas", `Receita aplicada: ${r.elementos_criados} elemento(s) criado(s), ${r.pulados} pulado(s). Revise os textos.`, "ok"); carregar(); } catch (e) { msg("msgReceitas", e.message, "erro"); } };
+$("btnReceitaRemover").onclick = async () => { const id = $("receitaSel").value; if (!id || !confirm(`Excluir a receita “${id}”?`)) return; try { await api("receitas/remover", { id }); carregar(); } catch (e) { msg("msgReceitas", e.message, "erro"); } };
+$("musicaUpload").onchange = async () => {
+  const f = $("musicaUpload").files[0]; if (!f) return;
+  try { msg("msgConfig", "Enviando trilha…", "info"); const r = await fetch("/api/musica/upload?nome=" + encodeURIComponent(f.name), { method: "POST", body: f }); const j = await r.json(); if (j.erro) throw new Error(j.erro);
+    msg("msgConfig", `Trilha ${j.arquivo} enviada e selecionada. Salve as configurações.`, "ok"); await carregar(); $("musica").value = j.arquivo; } catch (e) { msg("msgConfig", e.message, "erro"); }
+};
+
+// ------------------------------------------------ desfazer / refazer / histórico
+$("btnDesfazer").onclick = async () => { try { const r = await api("desfazer", {}); msg("msgImportar", "Desfeito." + (r.ultima_acao ? " Última ação agora: " + r.ultima_acao : ""), "ok"); await carregar(); if ($("historicoPainel").style.display !== "none") mostrarHistorico(); } catch (e) { msg("msgImportar", e.message, "erro"); } };
+$("btnRefazer").onclick = async () => { try { await api("refazer", {}); msg("msgImportar", "Refeito.", "ok"); await carregar(); if ($("historicoPainel").style.display !== "none") mostrarHistorico(); } catch (e) { msg("msgImportar", e.message, "erro"); } };
+$("btnHistorico").onclick = () => { const h = $("historicoPainel"); if (h.style.display === "none") mostrarHistorico(); else h.style.display = "none"; };
+async function mostrarHistorico() {
+  try {
+    const r = await api("historico", {}); const h = $("historicoPainel"); h.style.display = "";
+    $("btnRefazer").disabled = !r.pode_refazer;
+    h.innerHTML = "<b>Versões guardadas</b> (clique em “voltar” para restaurar; a versão atual também fica guardada): " + (r.versoes.length ? "" : "nenhuma ainda.") +
+      "<table><tbody>" + r.versoes.map(v => `<tr><td>${v.numero}</td><td>${esc(v.quando)}</td><td>${esc(v.acao)}</td><td><button class="sec hRestaurar" data-a="${esc(v.arquivo)}" style="padding:2px 8px;margin:0">voltar para antes desta ação</button></td></tr>`).join("") + "</tbody></table>";
+    h.querySelectorAll(".hRestaurar").forEach(b => b.onclick = async () => { if (!confirm("Voltar o projeto para a versão guardada antes desta ação? (a versão atual fica no histórico)")) return; try { await api("restaurar", { arquivo: b.dataset.a }); await carregar(); mostrarHistorico(); msg("msgImportar", "Versão restaurada.", "ok"); } catch (e) { msg("msgImportar", e.message, "erro"); } });
+  } catch (e) { msg("msgImportar", e.message, "erro"); }
+}
+
+// ------------------------------------------------ assistente passo a passo (modo guiado)
+const ORDEM_ETAPAS = ["importar", "transcrever", "revisar", "cortes", "estilo", "previa", "exportar"];
+const SECAO_DA_ETAPA = { importar: "secImportar", transcrever: "secTranscricao", revisar: "secTranscricao", cortes: "secCortes", estilo: "secEstilo", previa: "secPrevia", exportar: "secExportar" };
+let etapaAtual = null;
+$("modoGuiado").onchange = () => { try { localStorage.setItem("modoGuiado", $("modoGuiado").checked ? "1" : "0"); } catch (_) {} aplicarModoGuiado(); };
+function aplicarModoGuiado() {
+  const guiado = $("modoGuiado").checked; document.body.classList.toggle("guiado", guiado);
+  const a = $("assistente"); if (!guiado || !estado || !estado.projeto) { a.style.display = "none"; if (guiado && estado && !estado.projeto) { document.querySelectorAll("main > section").forEach(s => s.classList.add("ativa")); } return; }
+  const etapas = estado.projeto.etapas || [];
+  if (!etapaAtual) etapaAtual = (etapas.find(e => !e.feito) || etapas[etapas.length - 1]).id;
+  const idx = ORDEM_ETAPAS.indexOf(etapaAtual);
+  a.style.display = "";
+  a.innerHTML = `<div class="etapas">${etapas.map(e => `<span class="etapa ${e.feito ? "feita" : ""} ${e.id === etapaAtual ? "atual" : ""}" data-id="${e.id}">${e.feito ? "✓ " : ""}${esc(e.nome)}${e.detalhe ? ` <small>· ${esc(e.detalhe)}</small>` : ""}</span>`).join("")}
+    <span style="margin-left:auto"><button class="sec" id="etapaAnt" ${idx <= 0 ? "disabled" : ""} style="margin:0">◀ Anterior</button> <button id="etapaProx" ${idx >= ORDEM_ETAPAS.length - 1 ? "disabled" : ""} style="margin:0">Próximo ▶</button></span></div>
+    <p class="resumo" style="margin:6px 0 0">${esc(dicaEtapa(etapaAtual, etapas))}</p>`;
+  a.querySelectorAll(".etapa").forEach(el => el.onclick = () => { etapaAtual = el.dataset.id; aplicarModoGuiado(); });
+  $("etapaAnt").onclick = () => { etapaAtual = ORDEM_ETAPAS[Math.max(0, idx - 1)]; aplicarModoGuiado(); };
+  $("etapaProx").onclick = () => { etapaAtual = ORDEM_ETAPAS[Math.min(ORDEM_ETAPAS.length - 1, idx + 1)]; aplicarModoGuiado(); };
+  document.querySelectorAll("main > section, #comProjeto > section").forEach(sec => sec.classList.remove("ativa"));
+  const alvo = SECAO_DA_ETAPA[etapaAtual]; const sec = $(alvo); if (sec) { sec.classList.add("ativa"); sec.scrollIntoView({ block: "start" }); }
+  if (etapaAtual === "estilo") { ["secLinha", "secPalco"].forEach(id => $(id) && $(id).classList.add("ativa")); }
+}
+function dicaEtapa(id, etapas) {
+  const falta = etapas.filter(e => !e.feito).map(e => e.nome.toLowerCase());
+  const d = { importar: "Envie o vídeo. O original é copiado e nunca alterado.", transcrever: "Clique em Transcrever. O glossário corrige termos do setor automaticamente.",
+    revisar: "Confira os trechos amarelos e corrija o texto; salve. Palavras com [?] são incertas.", cortes: "Sugira silêncios e cortes inteligentes, revise e aplique.",
+    estilo: "Escolha o estilo, adicione elementos e posicione no Palco. Valide antes de seguir.", previa: "Gere a prévia e assista inteira.", exportar: "Exporte por rede e, se quiser, gere a capa." };
+  return (d[id] || "") + (falta.length ? `  Ainda falta: ${falta.join(", ")}.` : "  Tudo pronto.");
+}
+// ------------------------------------------------ linha do tempo arrastável
+let ltEscala = 30; // px por segundo
+$("ltEscala").oninput = () => { ltEscala = +$("ltEscala").value; if (estado && estado.projeto) renderLinhaVisual(estado.projeto); };
+function renderLinhaVisual(p) {
+  const el = $("linhaTempoVisual"); const dur = p.origem.info.duracao; const W = Math.max(600, Math.ceil(dur * ltEscala) + 110);
+  const X = t => 100 + t * ltEscala;
+  const trilhas = [];
+  let regua = '<div class="ltRegua">';
+  const passo = ltEscala >= 60 ? 1 : ltEscala >= 25 ? 5 : 10;
+  for (let t = 0; t <= dur; t += passo) regua += `<div class="ltTick" style="left:${X(t)}px">${fmtTempo(t)}</div>`;
+  regua += '</div>';
+  if (p.transcricao) trilhas.push({ nome: "Falas", itens: p.transcricao.segmentos.map(s => ({ cls: "fala" + (s.mantido ? "" : " rem"), ini: s.inicio, fim: s.fim, txt: `${s.id}. ${s.texto}`, tipo: "fala", id: s.id })) });
+  trilhas.push({ nome: "Remoções", itens: (p.remocoes || []).map(r => ({ cls: "remocao", ini: r.inicio, fim: r.fim, txt: r.motivo, tipo: "remocao", id: r.id })) });
+  const els = (p.cartoes || []).filter(c => c.ativo !== false).sort((a, b) => a.inicio - b.inicio);
+  const faixas = [];
+  for (const c of els) { let f = faixas.find(fx => fx.fim <= c.inicio); if (!f) { f = { fim: 0, itens: [] }; faixas.push(f); } f.itens.push(c); f.fim = c.fim; }
+  faixas.forEach((f, i) => trilhas.push({ nome: i === 0 ? "Elementos" : "", itens: f.itens.map(c => ({ cls: "elemento", ini: c.inicio, fim: c.fim, txt: `${c.tipo} ${c.id}: ${c.texto || c.imagem || (c.itens || []).join(", ")}`, tipo: "elemento", id: c.id })) }));
+  if (!faixas.length) trilhas.push({ nome: "Elementos", itens: [] });
+  trilhas.push({ nome: "Zoom", itens: (p.zooms || []).filter(z => z.ativo !== false).map(z => ({ cls: "zoom", ini: z.inicio, fim: z.fim, txt: `zoom ${z.tipo}`, tipo: "zoom", id: z.id })) });
+  const a = p.assinatura || {}; trilhas.push({ nome: "Assinatura", itens: a.ativo && a.nome ? [{ cls: "assinatura", ini: a.inicio, fim: a.fim, txt: a.nome, tipo: "assinatura", id: "assinatura" }] : [] });
+  let html = `<div class="lt" style="width:${W}px">` + regua;
+  for (const tr of trilhas) {
+    html += `<div class="ltTrilha"><span class="ltNome">${esc(tr.nome)}</span>` + tr.itens.map(it => `<div class="ltBar ${it.cls}" data-tipo="${it.tipo}" data-id="${esc(String(it.id))}" data-ini="${it.ini}" data-fim="${it.fim}" style="left:${X(it.ini)}px;width:${Math.max(6, (it.fim - it.ini) * ltEscala)}px" title="${esc(it.txt)} (${fmtTempo(it.ini)}–${fmtTempo(it.fim)})">${["elemento", "zoom", "assinatura"].includes(it.tipo) ? '<span class="alca alcaE"></span><span class="alca alcaD"></span>' : ""}${esc(it.txt)}</div>`).join("") + `</div>`;
+  }
+  html += `<div class="ltCursor" id="ltCursor" style="left:${X(+$("palcoTempo").value || 0)}px"></div></div>`;
+  el.innerHTML = html;
+  $("ltInfo").textContent = `${fmtTempo(dur)} de vídeo · ${els.length} elemento(s) · ${(p.remocoes || []).length} remoção(ões)`;
+  el.querySelectorAll(".ltBar").forEach(bar => ligarBarra(bar));
+}
+function ligarBarra(bar) {
+  const tipo = bar.dataset.tipo; const id = bar.dataset.id;
+  let modo = null, sx = 0, ini0 = 0, fim0 = 0, moveu = false;
+  const arrastavelTipo = ["elemento", "zoom", "assinatura"].includes(tipo);
+  bar.addEventListener("pointerdown", ev => {
+    if (!arrastavelTipo) return;
+    ev.preventDefault(); try { bar.setPointerCapture(ev.pointerId); } catch (_) {}
+    modo = ev.target.classList.contains("alcaE") ? "ini" : ev.target.classList.contains("alcaD") ? "fim" : "mover";
+    sx = ev.clientX; ini0 = +bar.dataset.ini; fim0 = +bar.dataset.fim; moveu = false;
+  });
+  bar.addEventListener("pointermove", ev => {
+    if (!modo) return; const dt = (ev.clientX - sx) / ltEscala; if (Math.abs(ev.clientX - sx) > 2) moveu = true;
+    let ini = ini0, fim = fim0; const dur = estado.projeto.origem.info.duracao;
+    if (modo === "mover") { ini = Math.max(0, Math.min(dur - (fim0 - ini0), ini0 + dt)); fim = ini + (fim0 - ini0); }
+    else if (modo === "ini") ini = Math.max(0, Math.min(fim0 - 0.3, ini0 + dt)); else fim = Math.min(dur, Math.max(ini0 + 0.3, fim0 + dt));
+    bar.style.left = (100 + ini * ltEscala) + "px"; bar.style.width = Math.max(6, (fim - ini) * ltEscala) + "px"; bar.dataset.novoIni = ini.toFixed(1); bar.dataset.novoFim = fim.toFixed(1);
+  });
+  bar.addEventListener("pointerup", async ev => {
+    try { bar.releasePointerCapture(ev.pointerId); } catch (_) {}
+    const m = modo; modo = null;
+    if (!m || !moveu) {
+      const t = +bar.dataset.ini + 0.3; $("palcoTempo").value = t.toFixed(1); $("palcoTempoNum").value = $("palcoTempo").value;
+      document.querySelectorAll(".ltBar").forEach(b => b.classList.remove("sel")); bar.classList.add("sel");
+      if (tipo === "elemento") { await mostrarPalco(); const el = document.querySelector(`#palco .el[data-id="${id}"]`); const e = (palcoDados.elementos || []).find(x => String(x.id) === id); if (el && e) selecionar(e, el); }
+      else if (tipo !== "remocao") mostrarPalco();
+      return;
+    }
+    const ini = +bar.dataset.novoIni, fim = +bar.dataset.novoFim;
+    try {
+      if (tipo === "elemento") await api("cartoes/atualizar", { id: +id, inicio: ini, fim });
+      else if (tipo === "zoom") await api("zoom/atualizar", { id: +id, inicio: ini, fim });
+      else if (tipo === "assinatura") await api("configurar", { assinatura: { inicio: ini, fim } });
+      msg("msgLinha", `${tipo} ${id}: ${fmtTempo(ini)} – ${fmtTempo(fim)} salvo.`, "ok"); carregar();
+    } catch (e) { msg("msgLinha", e.message, "erro"); carregar(); }
+  });
+}
+
 let palcoDados = null, palcoEscala = 1, palcoSelecionado = null;
 function palcoAtualizarSlider(p) {
   const dur = p.origem.info.duracao; $("palcoTempo").max = dur.toFixed(1); $("palcoTempoNum").max = dur.toFixed(1);
@@ -532,7 +754,7 @@ function palcoAtualizarSlider(p) {
   $("palcoElementos").innerHTML = marcos.length ? "Ir para: " + marcos.map(m => `<button class="sec palcoIr" data-t="${m.t}" style="padding:2px 8px;margin:2px">${m.tipo} ${m.id} (${fmtTempo(m.t)})</button>`).join("") : "";
   document.querySelectorAll(".palcoIr").forEach(b => b.onclick = () => { $("palcoTempo").value = (+b.dataset.t + 0.3).toFixed(1); $("palcoTempoNum").value = $("palcoTempo").value; mostrarPalco(); });
 }
-$("palcoTempo").oninput = () => $("palcoTempoNum").value = $("palcoTempo").value;
+$("palcoTempo").oninput = () => { $("palcoTempoNum").value = $("palcoTempo").value; const c = $("ltCursor"); if (c) c.style.left = (100 + (+$("palcoTempo").value) * ltEscala) + "px"; };
 $("palcoTempoNum").onchange = () => { $("palcoTempo").value = $("palcoTempoNum").value; };
 $("palcoTempo").onchange = () => mostrarPalco();
 $("palcoAtualizar").onclick = () => mostrarPalco();
@@ -542,9 +764,9 @@ function saltar(dir) {
   const alvo = dir > 0 ? ts.find(x => x > t + 0.05) : [...ts].reverse().find(x => x < t - 0.05);
   if (alvo !== undefined) { $("palcoTempo").value = alvo.toFixed(1); $("palcoTempoNum").value = $("palcoTempo").value; mostrarPalco(); }
 }
-let palcoOcupado = false;
+let palcoOcupado = false, palcoPendente = false;
 async function mostrarPalco() {
-  if (palcoOcupado) return;
+  if (palcoOcupado) { palcoPendente = true; return; }
   palcoOcupado = true;
   try {
     await salvarConfig();
@@ -552,7 +774,7 @@ async function mostrarPalco() {
     palcoDados = r; desenharPalco(r);
     msg("msgPalco", r.removido ? "Este instante está num trecho removido: ele não aparece no vídeo final, mas você pode posicionar mesmo assim." : `Instante ${fmtTempo(r.tempo)} (no vídeo editado: ${fmtTempo(r.tempo_editado)}).`, r.removido ? "info" : "ok");
   } catch (e) { msg("msgPalco", e.message, "erro"); }
-  finally { palcoOcupado = false; }
+  finally { palcoOcupado = false; if (palcoPendente) { palcoPendente = false; mostrarPalco(); } }
 }
 function desenharPalco(r) {
   const palco = $("palco"); const H = 640; const W = Math.round(H * r.largura / r.altura); palcoEscala = H / r.altura;
@@ -616,7 +838,9 @@ function selecionar(e, d) {
   document.querySelectorAll("#palco .el").forEach(x => x.classList.remove("sel")); d.classList.add("sel");
   if (typeof e.id !== "number") { $("palcoSel").style.display = "none"; return; }
   palcoSelecionado = e; $("palcoSel").style.display = "";
-  const c = (estado.projeto.cartoes || []).find(x => x.id === e.id); const tam = c ? (c.tamanho || (c.tipo === "imagem" || c.tipo === "video" ? 0.8 : 1.0)) : 1.0;
+  const c = (estado.projeto.cartoes || []).find(x => x.id === e.id);
+  $("palcoTexto").value = c ? (c.tipo === "chips" || c.tipo === "resumo" ? (c.itens || []).join(", ") : (c.texto || "")) : "";
+  $("palcoTexto").disabled = !c || ["imagem", "video", "icone", "tela"].includes(c.tipo); const tam = c ? (c.tamanho || (c.tipo === "imagem" || c.tipo === "video" ? 0.8 : 1.0)) : 1.0;
   const larg = e.conteudo ? Math.round(100 * e.conteudo.w / palcoDados.largura) : (e.w ? Math.round(100 * e.w / palcoDados.largura) : null);
   $("palcoSelNome").textContent = `${e.tipo} ${e.id} · tamanho ${tam} · ocupa ${larg != null ? larg + "% da largura" : "?"}`;
 }
@@ -625,6 +849,17 @@ async function ajustarSel(campos) {
   try { await api("cartoes/atualizar", { id: palcoSelecionado.id, ...campos }); await mostrarPalco(); carregar(); } catch (e) { msg("msgPalco", e.message, "erro"); }
 }
 function tamAtual() { const c = (estado.projeto.cartoes || []).find(x => x.id === palcoSelecionado.id); return c ? (c.tamanho || (c.tipo === "imagem" || c.tipo === "video" ? 0.8 : 1.0)) : 1.0; }
+let palcoTextoTimer = null;
+$("palcoTexto").oninput = () => {
+  clearTimeout(palcoTextoTimer);
+  palcoTextoTimer = setTimeout(async () => {
+    if (!palcoSelecionado) return;
+    const c = (estado.projeto.cartoes || []).find(x => x.id === palcoSelecionado.id); if (!c) return;
+    const v = $("palcoTexto").value;
+    try { await api("cartoes/atualizar", c.tipo === "chips" || c.tipo === "resumo" ? { id: c.id, itens: v } : { id: c.id, texto: v }); await mostrarPalco(); const el = document.querySelector(`#palco .el[data-id="${c.id}"]`); if (el) el.classList.add("sel"); estado.projeto.cartoes.find(x => x.id === c.id).texto = v; }
+    catch (e) { msg("msgPalco", e.message, "erro"); }
+  }, 700);
+};
 $("palcoMenor").onclick = () => ajustarSel({ tamanho: Math.max(0.2, Math.round((tamAtual() - 0.1) * 10) / 10) });
 $("palcoMaior").onclick = () => ajustarSel({ tamanho: Math.min(2, Math.round((tamAtual() + 0.1) * 10) / 10) });
 $("palcoCentrar").onclick = () => ajustarSel({ x: 0 });
@@ -634,8 +869,10 @@ $("palcoBaixo").onclick = () => ajustarSel({ posicao: "inferior", y: 0.7 });
 
 async function carregarExportados() {
   const lista = await api("exportados");
-  $("exportados").innerHTML = lista.length ? "<table><thead><tr><th>Arquivo</th><th>Tamanho</th><th>Legendas</th></tr></thead><tbody>" +
-    lista.map(e => `<tr><td><a href="${urlArquivo(e.arquivo)}" download>${esc(e.nome)}</a></td><td>${e.tamanho_mb} MB</td><td>${e.srt ? `<a href="${urlArquivo(e.srt)}" download>SRT</a>` : "—"}</td></tr>`).join("") + "</tbody></table>" : "";
+  $("exportados").innerHTML = lista.length ? "<table><thead><tr><th>Arquivo</th><th>Quando</th><th>Tamanho</th><th>Legendas</th><th></th></tr></thead><tbody>" +
+    lista.map(e => `<tr><td><a href="${urlArquivo(e.arquivo)}" download>${esc(e.nome)}</a></td><td>${esc(e.quando || "")}</td><td>${e.tamanho_mb} MB</td><td>${e.srt ? `<a href="${urlArquivo(e.srt)}" download>SRT</a>` : "—"}</td><td><button class="sec expArquivar" data-a="${esc(e.arquivo)}" style="padding:2px 8px;margin:0">arquivar</button> <button class="perigo expApagar" data-a="${esc(e.arquivo)}" style="padding:2px 8px;margin:0">apagar</button></td></tr>`).join("") + "</tbody></table><p class='resumo'>Arquivados vão para a subpasta “arquivo” em 4-Vídeos exportados.</p>" : "";
+  document.querySelectorAll(".expApagar").forEach(b => b.onclick = async () => { if (!confirm("Apagar este arquivo exportado (e o SRT)? Não tem volta.")) return; try { await api("exportados/apagar", { arquivo: b.dataset.a }); carregarExportados(); } catch (e) { msg("msgExportar", e.message, "erro"); } });
+  document.querySelectorAll(".expArquivar").forEach(b => b.onclick = async () => { try { await api("exportados/arquivar", { arquivo: b.dataset.a }); carregarExportados(); } catch (e) { msg("msgExportar", e.message, "erro"); } });
 }
 
 // ------------------------------------------------ tarefas em segundo plano
@@ -750,7 +987,9 @@ async function salvarConfig() {
     titulo: { texto: $("titulo").value.trim(), subtitulo: $("subtitulo").value.trim() },
     encerramento: { texto: $("encTexto").value.trim(), ativo: $("encAtivo").checked },
     logo: { arquivo: $("logoArquivo").value || null, posicao: $("logoPos").value, ativo: $("logoAtivo").checked },
-    audio: { ganho_db: +$("ganho").value || 0, melhorar_voz: $("melhorarVoz").checked, normalizar: $("normalizar").checked },
+    audio: { ganho_db: +$("ganho").value || 0, melhorar_voz: $("melhorarVoz").checked, normalizar: $("normalizar").checked, ruido: $("ruido").value,
+             musica: $("musica").value || null, musica_volume_db: $("musicaVolume").value === "" ? -18 : +$("musicaVolume").value, musica_abaixa_db: $("musicaAbaixa").value === "" ? 12 : +$("musicaAbaixa").value },
+    organizacao: { condominio: $("orgCondominio").value.trim(), tema: $("orgTema").value.trim() },
     legendas: { modo: $("legModo").value || null, posicao_percentual: $("legPos").value ? +$("legPos").value / 100 : null },
     marca_dagua: { texto: $("mdTexto").value.trim(), posicao: $("mdPos").value || null, ativo: !!($("mdTexto").value.trim() || ($("mdPos").value)) || undefined },
     assinatura: { nome: $("assNome").value.trim(), handle: $("assHandle").value.trim(), inicio: +$("assIni").value || 0, fim: +$("assFim").value || 0, ativo: $("assAtivo").checked },
@@ -782,16 +1021,18 @@ $("btnPrevia").onclick = async () => {
 
 $("btnExportar").onclick = async () => {
   const formatos = [...document.querySelectorAll(".fmt:checked")].map(c => c.value);
-  if (!formatos.length) return msg("msgExportar", "Marque pelo menos um formato.", "erro");
+  const redes = [...document.querySelectorAll(".rede:checked")].map(c => c.value);
+  if (!formatos.length && !redes.length) return msg("msgExportar", "Marque pelo menos um formato ou uma rede.", "erro");
   try { await salvarConfig();
     const v = await validarElementos(false);
     if ((v.erros || v.avisos) && !confirm(`O validador encontrou ${v.erros} erro(s) e ${v.avisos} aviso(s) (veja a lista na seção 5b). Exportar mesmo assim?`)) return;
-    await api("exportar", { formatos, nome: $("nomeExportar").value.trim() }); msg("msgExportar", "Exportando…", "info");
-    acompanhar("msgExportar", r => msg("msgExportar", r.exportacoes.map(e => `✓ ${e.arquivo}` + (e.srt ? `\n   SRT: ${e.srt}` : "") + `\n   ${e.conferencia.ok ? `${e.conferencia.largura}x${e.conferencia.altura}, ${e.conferencia.duracao}s, vídeo e áudio ok` : "PROBLEMA: " + JSON.stringify(e.conferencia)}`).join("\n"), r.exportacoes.every(e => e.conferencia.ok) ? "ok" : "erro")); }
+    await api("exportar", { formatos, redes, nome: $("nomeExportar").value.trim(), capa_tempo: $("capaTempo").value || null, capa_texto: $("capaTexto").value.trim() || null }); msg("msgExportar", "Exportando…", "info");
+    acompanhar("msgExportar", r => msg("msgExportar", r.exportacoes.map(e => `✓ ${e.arquivo}` + (e.srt ? `\n   SRT: ${e.srt}` : "") + `\n   ${e.conferencia.ok ? `${e.conferencia.largura}x${e.conferencia.altura}, ${e.conferencia.duracao}s, vídeo e áudio ok` : "PROBLEMA: " + JSON.stringify(e.conferencia)}`).join("\n") + (r.capa ? `\n✓ Capa: ${r.capa.arquivo}` : ""), r.exportacoes.every(e => e.conferencia.ok) ? "ok" : "erro")); }
   catch (e) { msg("msgExportar", e.message, "erro"); }
 };
 $("btnVerificar").onclick = async () => { try { const r = await api("verificar", {}); msg("msgExportar", r.itens.map(i => (i.ok ? "✓ " : "✗ ") + i.nome + (i.detalhe ? " — " + i.detalhe : "")).join("\n") + "\n\n" + (r.ok ? "TUDO OK" : "HÁ PENDÊNCIAS"), r.ok ? "ok" : "erro"); } catch (e) { msg("msgExportar", e.message, "erro"); } };
 
+try { $("modoGuiado").checked = localStorage.getItem("modoGuiado") === "1"; } catch (_) {}
 carregar().catch(e => msg("msgImportar", "Não consegui falar com o servidor: " + e.message, "erro"));
 </script>
 </body>
