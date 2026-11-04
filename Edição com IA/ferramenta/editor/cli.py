@@ -728,8 +728,34 @@ def cmd_previsualizar(args):
     imprimir(f"Conferido: {'ok' if chk.get('ok') else 'PROBLEMA'} {chk}")
 
 
+def cmd_pasta_saida(args):
+    from .util import gravar_configuracao, ler_configuracao, pasta_saida as _pasta_saida, validar_pasta_saida, escolher_pasta_janela
+    pasta, dados = _carregar(args)
+    if args.escolher:
+        escolhida = escolher_pasta_janela(inicial=str(_pasta_saida(dados)))
+        if not escolhida:
+            imprimir("Nenhuma pasta escolhida."); return
+        args.definir = escolhida
+    if args.limpar:
+        dados.pop("pasta_saida", None)
+        mod_projeto.salvar(pasta, dados, acao="pasta de destino: voltou ao padrão")
+    elif args.definir:
+        validada = validar_pasta_saida(args.definir)
+        dados["pasta_saida"] = str(validada)
+        if args.como_padrao:
+            gravar_configuracao({"pasta_saida": str(validada)})
+        mod_projeto.salvar(pasta, dados, acao=f"pasta de destino: {validada}")
+    imprimir(f"Pasta de destino deste projeto: {dados.get('pasta_saida') or '(não definida)'}")
+    imprimir(f"Pasta padrão para todos os projetos: {ler_configuracao().get('pasta_saida') or '(não definida)'}")
+    imprimir(f"Os vídeos serão gravados em: {_pasta_saida(dados)}")
+
+
 def cmd_exportar(args):
     pasta, dados = _carregar(args)
+    if args.pasta:
+        from .util import validar_pasta_saida
+        dados["pasta_saida"] = str(validar_pasta_saida(args.pasta))
+        mod_projeto.salvar(pasta, dados, acao=f"pasta de destino: {dados['pasta_saida']}")
     formatos = args.formato or ([] if args.rede else [dados.get("formato", "16:9")])
     tarefas = [(f, None) for f in formatos] + [(None, r) for r in (args.rede or [])]
     for f, rede in tarefas:
@@ -1018,7 +1044,13 @@ def construir_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("exportar", help="exporta o vídeo final (MP4 com legendas embutidas + SRT)")
     s.add_argument("projeto"); s.add_argument("--formato", nargs="*", choices=list(mod_projeto.FORMATOS)); s.add_argument("--nome")
-    s.add_argument("--rede", nargs="*", choices=list(render.REDES), help="ajuste por rede: reels, tiktok, shorts, youtube, feed, whatsapp"); s.set_defaults(fn=cmd_exportar)
+    s.add_argument("--rede", nargs="*", choices=list(render.REDES), help="ajuste por rede: reels, tiktok, shorts, youtube, feed, whatsapp")
+    s.add_argument("--pasta", help="pasta de destino dos vídeos (fica salva no projeto)"); s.set_defaults(fn=cmd_exportar)
+
+    s = sub.add_parser("pasta-saida", help="mostra/define a pasta onde os vídeos editados são salvos")
+    s.add_argument("projeto"); s.add_argument("--definir", help="caminho completo da pasta"); s.add_argument("--escolher", action="store_true", help="abre a janela para escolher")
+    s.add_argument("--como-padrao", action="store_true", help="usa também como padrão para todos os projetos"); s.add_argument("--limpar", action="store_true", help="volta à pasta padrão")
+    s.set_defaults(fn=cmd_pasta_saida)
 
     s = sub.add_parser("verificar", help="confere original preservado, exportação íntegra, cortes e legendas"); s.add_argument("projeto"); s.set_defaults(fn=cmd_verificar)
 

@@ -18,7 +18,8 @@ from . import validar as mod_validar
 from . import glossario as mod_glossario, vicios as mod_vicios, receitas as mod_receitas
 from . import descrever, estilos, legendas as mod_legendas, projeto as mod_projeto, render, silencios as mod_silencios
 from . import transcricao as mod_transcricao, verificar as mod_verificar
-from .util import (PASTA_BRUTO, PASTA_EXPORTADOS, PASTA_INTERFACE, PASTA_LOGOS, RAIZ, EXTENSOES_VIDEO, ErroEdicao,
+from .util import (abrir_pasta_no_sistema, escolher_pasta_janela, gravar_configuracao, ler_configuracao, pasta_saida,
+                   validar_pasta_saida, PASTA_BRUTO, PASTA_EXPORTADOS, PASTA_INTERFACE, PASTA_LOGOS, RAIZ, EXTENSOES_VIDEO, ErroEdicao,
                    garantir_pastas, nome_seguro)
 
 # ---------------------------------------------------------------- dependências
@@ -79,6 +80,17 @@ def _progresso(frac: float, mensagem=None):
     elif isinstance(mensagem, (int, float)):
         campos["mensagem"] = f"{mensagem:.1f}s renderizados"
     _tarefa_atualizar(**campos)
+
+
+def _pasta_saida_atual() -> Path:
+    ident = _estado["projeto_atual"]
+    dados = None
+    if ident:
+        try:
+            dados = mod_projeto.carregar(ident)[1]
+        except ErroEdicao:
+            dados = None
+    return pasta_saida(dados)
 
 
 def _projeto_atual() -> tuple[Path, dict]:
@@ -184,8 +196,17 @@ class Handler(BaseHTTPRequestHandler):
         """Serve um arquivo dentro da pasta principal, com suporte a Range (necessário para o <video>)."""
         try:
             caminho = caminho.resolve()
-            caminho.relative_to(RAIZ.resolve())
-        except (ValueError, OSError):
+            permitido = False
+            for base in (RAIZ.resolve(), _pasta_saida_atual().resolve()):
+                try:
+                    caminho.relative_to(base)
+                    permitido = True
+                    break
+                except ValueError:
+                    continue
+            if not permitido:
+                return self._erro("Acesso negado fora da pasta do projeto.", 403)
+        except OSError:
             return self._erro("Acesso negado fora da pasta do projeto.", 403)
         if not caminho.is_file():
             return self._erro("Arquivo não encontrado.", 404)
@@ -245,7 +266,7 @@ class Handler(BaseHTTPRequestHandler):
                 with _trava:
                     return self._json(dict(_estado["tarefa"]))
             if url.path == "/api/exportados":
-                itens = sorted(PASTA_EXPORTADOS.glob("*.mp4"), key=lambda p: p.stat().st_mtime, reverse=True)
+                itens = sorted(_pasta_saida_atual().glob("*.mp4"), key=lambda p: p.stat().st_mtime, reverse=True)
                 import datetime as _dt
                 return self._json([{"arquivo": str(p), "nome": p.name, "srt": str(p.with_suffix(".srt")) if p.with_suffix(".srt").exists() else None,
                                     "tamanho_mb": round(p.stat().st_size / 1e6, 2),
@@ -260,10 +281,31 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:  # noqa: BLE001
             return self._erro(f"Erro inesperado: {e}", 500)
 
+    def _info_pasta_saida(self) -> dict:
+        ident = _estado["projeto_atual"]
+        dados = None
+        if ident:
+            try:
+                dados = mod_projeto.carregar(ident)[1]
+            except ErroEdicao:
+                dados = None
+        efetiva = pasta_saida(dados)
+        do_projeto = (dados or {}).get("pasta_saida") or ""
+        padrao = ler_configuracao().get("pasta_saida") or ""
+        origem = "projeto" if do_projeto and Path(do_projeto) == efetiva else ("padrão" if padrao and Path(padrao) == efetiva else "pasta original da ferramenta")
+        aviso = ""
+        for chave, valor in (("do projeto", do_projeto), ("padrão", padrao)):
+            if valor and Path(valor) != efetiva and not Path(valor).exists():
+                aviso = f"A pasta {chave} ({valor}) não está disponível agora; usando {efetiva}."
+                break
+        return {"efetiva": str(efetiva), "projeto": do_projeto, "padrao": padrao, "origem": origem,
+                "original": str(PASTA_EXPORTADOS), "aviso": aviso}
+
     def _estado_completo(self) -> dict:
         saida = {"projetos": mod_projeto.listar_projetos(), "perfis": estilos.listar_perfis(),
                  "dependencias": verificar_dependencias(), "versao": __version__, "codigo": str(Path(__file__).resolve().parent), "projeto": None, "pastas": {"raiz": str(RAIZ), "bruto": str(PASTA_BRUTO), "logos": str(PASTA_LOGOS),
                                              "exportados": str(PASTA_EXPORTADOS)}}
+        saida["pasta_saida"] = self._info_pasta_saida()
         with _trava:
             saida["tarefa"] = dict(_estado["tarefa"])
             ident = _estado["projeto_atual"]
@@ -607,6 +649,36 @@ class Handler(BaseHTTPRequestHandler):
             mod_cli.cmd_sugerir(a)
         return self._json({"ok": True, "texto": buf.getvalue(), "ja_tinha_topicos": len(ja_tem)})
 
+    def rota_pasta_saida(self, c):
+        return self._json(self._info_pasta_saida())
+
+    def rota_pasta_saida_escolher(self, c):
+        """Abre a janela nativa do Windows para escolher a pasta; só devolve o caminho (a gravação é outra chamada)."""
+        info = self._info_pasta_saida()
+        escolhida = escolher_pasta_janela(inicial=info["efetiva"])
+        return self._json({"ok": True, "caminho": escolhida, "cancelado": not escolhida})
+
+    def rota_pasta_saida_definir(self, c):
+        """Define a pasta do projeto (e, se pedido, a padrão). Caminho vazio volta ao padrão/original."""
+        pasta, dados = _projeto_atual()
+        texto = (c.get("caminho") or "").strip()
+        if not texto:
+            dados.pop("pasta_saida", None)
+            if c.get("como_padrao"):
+                gravar_configuracao({"pasta_saida": ""})
+            mod_projeto.salvar(pasta, dados, acao="pasta de destino: voltou ao padrão")
+            return self._json({"ok": True, **self._info_pasta_saida()})
+        validada = validar_pasta_saida(texto, criar=True)
+        dados["pasta_saida"] = str(validada)
+        if c.get("como_padrao"):
+            gravar_configuracao({"pasta_saida": str(validada)})
+        mod_projeto.salvar(pasta, dados, acao=f"pasta de destino: {validada}")
+        return self._json({"ok": True, **self._info_pasta_saida()})
+
+    def rota_pasta_saida_abrir(self, c):
+        abrir_pasta_no_sistema(_pasta_saida_atual())
+        return self._json({"ok": True})
+
     def rota_historico(self, c):
         pasta, dados = _projeto_atual()
         refazer = pasta / "versoes" / "refazer"
@@ -766,8 +838,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def rota_exportados_apagar(self, c):
         p = Path(c["arquivo"]).resolve()
-        if p.parent != PASTA_EXPORTADOS.resolve() and p.parent != (PASTA_EXPORTADOS / "arquivo").resolve():
-            raise ErroEdicao("Só é possível apagar arquivos da pasta de exportados.")
+        base = _pasta_saida_atual().resolve()
+        if p.parent != base and p.parent != (base / "arquivo").resolve():
+            raise ErroEdicao("Só é possível apagar arquivos da pasta de destino dos vídeos.")
         for extra in (p, p.with_suffix(".srt")):
             if extra.exists():
                 extra.unlink()
@@ -775,9 +848,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def rota_exportados_arquivar(self, c):
         p = Path(c["arquivo"]).resolve()
-        if p.parent != PASTA_EXPORTADOS.resolve():
-            raise ErroEdicao("Só é possível arquivar arquivos da pasta de exportados.")
-        destino = PASTA_EXPORTADOS / "arquivo"
+        base = _pasta_saida_atual().resolve()
+        if p.parent != base:
+            raise ErroEdicao("Só é possível arquivar arquivos da pasta de destino dos vídeos.")
+        destino = base / "arquivo"
         destino.mkdir(exist_ok=True)
         import shutil as _sh
         for extra in (p, p.with_suffix(".srt")):

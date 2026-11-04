@@ -10,7 +10,7 @@ from .estilos import caminho_fonte, caminho_logo, carregar_perfil, perfil_do_pro
 from .cartoes import planejar_sobreposicoes
 from .legendas import construir_legendas, escrever_ass, escrever_srt
 from .projeto import caminho_origem, dimensoes_formato, duracao_editada, trechos_mantidos
-from .util import (PASTA_EXPORTADOS, PASTA_FONTES, ErroEdicao, cor_ffmpeg, escapar_filtro,
+from .util import (PASTA_EXPORTADOS, PASTA_FONTES, pasta_saida, ErroEdicao, cor_ffmpeg, escapar_filtro,
                    executar, executar_ffmpeg_com_progresso, ffmpeg_bin, info_video, nome_seguro)
 
 FPS_SAIDA = 30
@@ -275,6 +275,8 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
                nome_saida: str | None = None, ao_progredir=None, rede: str | None = None) -> dict:
     """Gera o vídeo (prévia ou final) e, na exportação final, o SRT ao lado. Retorna um resumo."""
     perfil = perfil_do_projeto(dados)
+    if qualidade == "final":
+        pasta_saida(dados, estrito=True)   # falha logo, antes de renderizar, se a pasta escolhida não estiver disponível
     preset = REDES.get(rede or "padrao")
     if preset is None:
         raise ErroEdicao(f"Rede '{rede}' desconhecida. Opções: {', '.join(REDES)}")
@@ -477,13 +479,13 @@ def renderizar(pasta: Path, dados: dict, formato: str | None = None, qualidade: 
         saida = trabalho / f"previa-{sufixo}.mp4"
         codec = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-c:a", "aac", "-b:a", "96k"]
     else:
-        PASTA_EXPORTADOS.mkdir(parents=True, exist_ok=True)
+        destino_pasta = pasta_saida(dados, estrito=True)
         base = nome_seguro(nome_saida or nome_padrao_exportacao(dados))
         marca_rede = f"-{rede}" if rede and rede != "padrao" else ""
-        saida = PASTA_EXPORTADOS / f"{base}-{sufixo}{marca_rede}.mp4"
+        saida = destino_pasta / f"{base}-{sufixo}{marca_rede}.mp4"
         n = 2
         while saida.exists():
-            saida = PASTA_EXPORTADOS / f"{base}-{sufixo}{marca_rede}-{n}.mp4"
+            saida = destino_pasta / f"{base}-{sufixo}{marca_rede}-{n}.mp4"
             n += 1
         codec = ["-c:v", "libx264", "-preset", "medium", "-crf", preset["crf"], "-profile:v", "high", "-pix_fmt", "yuv420p",
                  "-c:a", "aac", "-b:a", preset["audio"], "-movflags", "+faststart"]
@@ -558,8 +560,7 @@ def capa(pasta: Path, dados: dict, tempo: float, formato: str | None = None, tex
             w = _medir(draw, linha, fonte)[0]
             draw.text(((L - w) / 2, y), linha, font=fonte, fill=_rgba("#FFFFFF"), stroke_width=max(2, tam // 18), stroke_fill=_rgba(perfil["cores"]["primaria"]))
             y += alt
-    PASTA_EXPORTADOS.mkdir(parents=True, exist_ok=True)
-    saida = PASTA_EXPORTADOS / f"{nome_seguro(nome_padrao_exportacao(dados))}-capa-{formato.replace(':', 'x')}.jpg"
+    saida = pasta_saida(dados, estrito=True) / f"{nome_seguro(nome_padrao_exportacao(dados))}-capa-{formato.replace(':', 'x')}.jpg"
     img.convert("RGB").save(saida, quality=92)
     return {"arquivo": str(saida), "tempo": tempo, "formato": formato}
 

@@ -162,6 +162,20 @@ Escolha o instante na linha do tempo (ou pule de elemento em elemento) e veja o 
 - **Fila de exportação em lote**: formatos e redes marcados saem numa só execução.
 - **Organização dos exportados**: campos "Condomínio" e "Tema" (seção 5) nomeiam os arquivos como `condominio-tema-data`; na lista da seção 7 dá para arquivar (subpasta `arquivo`) ou apagar.
 
+### Pasta de destino dos vídeos editados (versão 0.5.2)
+
+Na seção 7 há o campo **"Pasta onde salvar os vídeos editados"**: digite o caminho completo ou clique em **"Escolher pasta…"** (abre a janela do Windows; ela pode aparecer atrás do navegador). A escolha vale para o projeto; marque "Usar também como padrão para todos os projetos" para valer em todos. "Abrir pasta" abre a pasta no Explorador e "Voltar à pasta original da ferramenta" desfaz a escolha.
+
+- O vídeo, o SRT e a capa vão para a pasta escolhida; a lista da seção 7, o download, "arquivar" e "apagar" passam a olhar essa pasta.
+- A pasta é criada se não existir e testada com uma gravação de verificação. Não é aceita uma pasta dentro de `1-Material bruto` (reservada aos originais), nem caminho relativo.
+- Se a pasta escolhida não estiver disponível na hora de exportar (disco removido, sem permissão), a exportação falha **logo**, com mensagem clara, em vez de gravar em outro lugar sem avisar.
+- Se o Python não tiver o módulo de janelas (tkinter), a interface avisa e você digita o caminho. Terminal: `python -m editor pasta-saida <projeto> --definir "D:\Videos Prontos" [--como-padrao] | --escolher | --limpar` e `python -m editor exportar <projeto> --pasta "D:\Videos Prontos"`.
+- A escolha padrão fica em `Edição com IA/configuracao.json`.
+
+### Correção da versão 0.5.1
+
+Exportar no Windows não falha mais na conferência final: toda leitura de FFmpeg/FFprobe usa UTF-8 (antes, metadados com acentos quebravam a leitura no cp1252).
+
 ### Ainda não implementado
 
 - Leitura automática do estilo de um vídeo de referência (os estilos são configurados nos perfis; use `referencias.bat` para mandar quadros ao Claude e transformar o estilo em perfil).

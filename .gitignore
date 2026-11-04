@@ -25,3 +25,6 @@ Edição com IA/2-Identidade visual e referências/imagens/*
 
 # Versões guardadas dos projetos (desfazer/histórico)
 **/3-Projetos e intermediários/*/versoes/
+
+# Configuração pessoal (pasta de destino padrão etc.)
+Edição com IA/configuracao.json

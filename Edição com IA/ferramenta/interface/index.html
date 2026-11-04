@@ -345,7 +345,18 @@
   </section>
 
   <section id="secExportar">
-    <h2>7. Exportar <small>MP4 com áudio e legendas embutidas + arquivo SRT ao lado, em “4-Vídeos exportados”</small></h2>
+    <h2>7. Exportar <small>MP4 com áudio e legendas embutidas + arquivo SRT ao lado, na pasta de destino escolhida abaixo</small></h2>
+    <div style="border:1px solid var(--borda);border-radius:8px;padding:10px;margin-bottom:10px;background:#fafbfe">
+      <b>Pasta onde salvar os vídeos editados</b>
+      <div class="linha">
+        <div style="flex:3 1 380px"><label>Caminho da pasta (ou clique em “Escolher pasta…”)</label><input type="text" id="pastaSaida" placeholder="ex.: C:\Users\voce\Videos\Prontos"></div>
+        <div style="align-self:end;flex:2 1 300px"><button id="btnPastaEscolher" class="sec">Escolher pasta…</button><button id="btnPastaSalvar">Usar esta pasta</button><button id="btnPastaAbrir" class="sec">Abrir pasta</button></div>
+      </div>
+      <label style="font-weight:normal"><input type="checkbox" id="pastaPadrao"> Usar também como padrão para todos os projetos</label>
+      <button id="btnPastaLimpar" class="sec" style="padding:3px 10px">Voltar à pasta original da ferramenta</button>
+      <div class="resumo" id="pastaInfo" style="margin-top:6px"></div>
+      <div id="msgPasta"></div>
+    </div>
     <p class="resumo">Formatos genéricos (alta qualidade):</p>
     <label><input type="checkbox" class="fmt" value="16:9"> 16:9</label>
     <label><input type="checkbox" class="fmt" value="9:16"> 9:16</label>
@@ -423,6 +434,7 @@ async function carregar() {
   $("ctVideo").innerHTML = "<option value=''>—</option>" + (p.videos_apoio || []).map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("");
   $("ctSubtipo").innerHTML = Object.entries(p.subtipos_tela || {}).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
   const ro = p.rosto || {}; $("rostoInfo").textContent = ro.centro_x != null ? `rosto detectado em ${ro.quadros_com_rosto}/${ro.quadros} quadros (x ${ro.centro_x}, y ${ro.centro_y}); o zoom segue o rosto` : (ro.quadros ? "nenhum rosto detectado" : "");
+  mostrarPastaSaida(estado.pasta_saida);
   renderCartoes(p); renderZooms(p); renderLinhaTempo(p); palcoAtualizarSlider(p); renderLinhaVisual(p);
   aplicarModoGuiado();
   document.querySelectorAll(".fmt").forEach(c => c.checked = c.value === p.formato);
@@ -867,10 +879,32 @@ $("palcoTopo").onclick = () => ajustarSel({ posicao: "superior", y: 0.12 });
 $("palcoMeio").onclick = () => ajustarSel({ posicao: "centro", y: 0.5 });
 $("palcoBaixo").onclick = () => ajustarSel({ posicao: "inferior", y: 0.7 });
 
+// ------------------------------------------------ pasta de destino dos vídeos
+function mostrarPastaSaida(info) {
+  if (!info) return;
+  $("pastaInfo").innerHTML = `Os vídeos serão gravados em: <b>${esc(info.efetiva)}</b> <small>(${esc(info.origem)})</small>` + (info.aviso ? `<br><span style="color:var(--erro)">${esc(info.aviso)}</span>` : "");
+  if (document.activeElement !== $("pastaSaida")) $("pastaSaida").value = info.projeto || info.padrao || "";
+}
+$("btnPastaEscolher").onclick = async () => {
+  try { msg("msgPasta", "Abrindo a janela de escolha de pasta… (ela pode aparecer atrás do navegador)", "info");
+    const r = await api("pasta_saida/escolher", {});
+    if (r.cancelado) return msg("msgPasta", "Nenhuma pasta escolhida.", "info");
+    $("pastaSaida").value = r.caminho; await salvarPastaSaida(); }
+  catch (e) { msg("msgPasta", e.message, "erro"); }
+};
+async function salvarPastaSaida() {
+  const r = await api("pasta_saida/definir", { caminho: $("pastaSaida").value, como_padrao: $("pastaPadrao").checked });
+  mostrarPastaSaida(r); msg("msgPasta", $("pastaSaida").value.trim() ? "Pasta de destino salva. As próximas exportações vão para lá." : "Voltou à pasta original da ferramenta.", "ok");
+  carregarExportados();
+}
+$("btnPastaSalvar").onclick = async () => { try { await salvarPastaSaida(); } catch (e) { msg("msgPasta", e.message, "erro"); } };
+$("btnPastaLimpar").onclick = async () => { try { $("pastaSaida").value = ""; await salvarPastaSaida(); } catch (e) { msg("msgPasta", e.message, "erro"); } };
+$("btnPastaAbrir").onclick = async () => { try { await api("pasta_saida/abrir", {}); } catch (e) { msg("msgPasta", e.message, "erro"); } };
+
 async function carregarExportados() {
   const lista = await api("exportados");
   $("exportados").innerHTML = lista.length ? "<table><thead><tr><th>Arquivo</th><th>Quando</th><th>Tamanho</th><th>Legendas</th><th></th></tr></thead><tbody>" +
-    lista.map(e => `<tr><td><a href="${urlArquivo(e.arquivo)}" download>${esc(e.nome)}</a></td><td>${esc(e.quando || "")}</td><td>${e.tamanho_mb} MB</td><td>${e.srt ? `<a href="${urlArquivo(e.srt)}" download>SRT</a>` : "—"}</td><td><button class="sec expArquivar" data-a="${esc(e.arquivo)}" style="padding:2px 8px;margin:0">arquivar</button> <button class="perigo expApagar" data-a="${esc(e.arquivo)}" style="padding:2px 8px;margin:0">apagar</button></td></tr>`).join("") + "</tbody></table><p class='resumo'>Arquivados vão para a subpasta “arquivo” em 4-Vídeos exportados.</p>" : "";
+    lista.map(e => `<tr><td><a href="${urlArquivo(e.arquivo)}" download>${esc(e.nome)}</a></td><td>${esc(e.quando || "")}</td><td>${e.tamanho_mb} MB</td><td>${e.srt ? `<a href="${urlArquivo(e.srt)}" download>SRT</a>` : "—"}</td><td><button class="sec expArquivar" data-a="${esc(e.arquivo)}" style="padding:2px 8px;margin:0">arquivar</button> <button class="perigo expApagar" data-a="${esc(e.arquivo)}" style="padding:2px 8px;margin:0">apagar</button></td></tr>`).join("") + "</tbody></table><p class='resumo'>Arquivados vão para a subpasta “arquivo” da pasta de destino.</p>" : "";
   document.querySelectorAll(".expApagar").forEach(b => b.onclick = async () => { if (!confirm("Apagar este arquivo exportado (e o SRT)? Não tem volta.")) return; try { await api("exportados/apagar", { arquivo: b.dataset.a }); carregarExportados(); } catch (e) { msg("msgExportar", e.message, "erro"); } });
   document.querySelectorAll(".expArquivar").forEach(b => b.onclick = async () => { try { await api("exportados/arquivar", { arquivo: b.dataset.a }); carregarExportados(); } catch (e) { msg("msgExportar", e.message, "erro"); } });
 }

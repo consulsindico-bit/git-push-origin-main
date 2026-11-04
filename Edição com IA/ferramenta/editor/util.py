@@ -281,3 +281,109 @@ def barra_progresso(prefixo: str):
         if frac >= 1.0:
             sys.stdout.write("\n")
     return _cb
+
+
+# ---------------------------------------------------------------- pasta de saída (onde ficam os vídeos editados)
+
+ARQUIVO_CONFIG = RAIZ / "configuracao.json"
+
+
+def ler_configuracao() -> dict:
+    try:
+        return ler_json(ARQUIVO_CONFIG) if ARQUIVO_CONFIG.exists() else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def gravar_configuracao(novos: dict) -> None:
+    atual = ler_configuracao()
+    atual.update(novos)
+    gravar_json(ARQUIVO_CONFIG, atual)
+
+
+def validar_pasta_saida(texto: str, criar: bool = True) -> Path:
+    """Valida uma pasta escolhida pelo usuário: existe (ou pode ser criada), é gravável e não é uma pasta proibida."""
+    texto = (texto or "").strip().strip('"')
+    if not texto:
+        raise ErroEdicao("Informe o caminho da pasta de destino.")
+    pasta = Path(os.path.expandvars(os.path.expanduser(texto)))
+    if not pasta.is_absolute():
+        raise ErroEdicao(f"Use o caminho completo da pasta (por exemplo C:\\Videos\\Prontos). Recebi: {texto}")
+    try:
+        pasta_resolvida = pasta.resolve()
+        bruto = PASTA_BRUTO.resolve()
+        if pasta_resolvida == bruto or bruto in pasta_resolvida.parents:
+            raise ErroEdicao("Não salve os vídeos editados dentro de '1-Material bruto': essa pasta é reservada para os originais.")
+    except OSError:
+        pass
+    if not pasta.exists():
+        if not criar:
+            raise ErroEdicao(f"A pasta não existe: {pasta}")
+        try:
+            pasta.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            raise ErroEdicao(f"Não consegui criar a pasta '{pasta}': {e.strerror or e}. Escolha outra pasta ou confira se o disco existe.")
+    if not pasta.is_dir():
+        raise ErroEdicao(f"O caminho não é uma pasta: {pasta}")
+    teste = pasta / f".teste-gravacao-{os.getpid()}.tmp"
+    try:
+        teste.write_text("ok", encoding="utf-8")
+        teste.unlink()
+    except OSError as e:
+        raise ErroEdicao(f"Não consigo gravar na pasta '{pasta}' ({e.strerror or e}). Escolha uma pasta em que você tenha permissão, como Documentos ou Vídeos.")
+    return pasta
+
+
+def pasta_saida(dados: dict | None = None, estrito: bool = False) -> Path:
+    """Pasta onde os vídeos editados são gravados: a do projeto, senão a padrão da configuração, senão '4-Vídeos exportados'.
+
+    estrito=True (usado ao exportar): se houver uma pasta escolhida e ela não estiver disponível, falha com mensagem clara
+    em vez de gravar em outro lugar sem avisar. estrito=False (listagens): cai para a próxima opção."""
+    for origem in ((dados or {}).get("pasta_saida"), ler_configuracao().get("pasta_saida")):
+        if origem:
+            try:
+                return validar_pasta_saida(origem)
+            except ErroEdicao as e:
+                if estrito:
+                    raise ErroEdicao(f"A pasta de destino escolhida não está disponível: {e} "
+                                     "Escolha outra pasta na seção 7 (ou remova a escolha para usar a pasta padrão).")
+                continue
+    PASTA_EXPORTADOS.mkdir(parents=True, exist_ok=True)
+    return PASTA_EXPORTADOS
+
+
+def escolher_pasta_janela(inicial: str | None = None, titulo: str = "Escolha a pasta para salvar os vídeos editados") -> str | None:
+    """Abre a janela nativa de seleção de pasta (tkinter) num processo separado. Devolve o caminho, '' se cancelou."""
+    codigo = (
+        "import sys\n"
+        "try:\n"
+        "    import tkinter as tk\n"
+        "    from tkinter import filedialog\n"
+        "except Exception:\n"
+        "    sys.exit(3)\n"
+        "r = tk.Tk(); r.withdraw()\n"
+        "try: r.attributes('-topmost', True)\n"
+        "except Exception: pass\n"
+        "p = filedialog.askdirectory(title=sys.argv[1], initialdir=sys.argv[2] or None, mustexist=False)\n"
+        "sys.stdout.buffer.write((p or '').encode('utf-8'))\n"
+    )
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    try:
+        r = subprocess.run([sys.executable, "-c", codigo, titulo, inicial or ""], capture_output=True, timeout=600, env=env)
+    except subprocess.TimeoutExpired:
+        raise ErroEdicao("A janela de escolha de pasta ficou aberta por muito tempo e foi fechada. Tente de novo ou digite o caminho.")
+    if r.returncode == 3:
+        raise ErroEdicao("Este Python não tem o módulo de janelas (tkinter). Digite o caminho da pasta no campo ao lado.")
+    if r.returncode != 0:
+        raise ErroEdicao("Não consegui abrir a janela de escolha de pasta. Digite o caminho no campo ao lado.")
+    return r.stdout.decode("utf-8", errors="replace").strip().replace("/", os.sep) if r.stdout else ""
+
+
+def abrir_pasta_no_sistema(pasta: Path) -> None:
+    """Abre a pasta no Explorador (Windows), Finder (macOS) ou gerenciador de arquivos (Linux)."""
+    if sys.platform.startswith("win"):
+        os.startfile(str(pasta))  # noqa: S606
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", str(pasta)])
+    else:
+        subprocess.Popen(["xdg-open", str(pasta)])
